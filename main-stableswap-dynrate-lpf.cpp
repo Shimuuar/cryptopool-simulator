@@ -1610,7 +1610,8 @@ struct Trader {
             money bal_mul = (_xp[0] + _xp[1]);
             money ideal_vp = xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction);
             bal_mul = 4 * _xp[0] * _xp[1] / (bal_mul * bal_mul);
-            xcp_profit_real_adj *= (ideal_vp / xcp_profit_real_prev - 1.L) * bal_mul * bal_mul + 1.L;
+            // xcp_profit_real_adj *= (ideal_vp / xcp_profit_real_prev - 1.L) * bal_mul * bal_mul + 1.L;
+            xcp_profit_real_adj *= (ideal_vp / xcp_profit_real_prev);
             xcp_profit_real_prev = ideal_vp;
 
             total_vol += vol;
