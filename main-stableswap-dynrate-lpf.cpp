@@ -1487,10 +1487,13 @@ struct Trader {
                 if (N == 2) {
                     money ps_before = curve.p[1];
                     money cur_get_p = curve.p_2(0, 1);
-                    tweak_price_2(d.t, a, b, spot_prev);
+                    (void)spot_prev;
+                    tweak_price_2(d.t, a, b, last_prices);
                     last_prices = cur_get_p * ps_before;
+                    last_time_tweak_price = d.t;
                 } else {
                     tweak_price_3(d.t, a, b, spot_prev);
+                    last_time_tweak_price = d.t;
                 }
             };
 
