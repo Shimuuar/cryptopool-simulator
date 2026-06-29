@@ -4,6 +4,11 @@
 CXX      = g++
 CXXFLAGS = -Wall -g -O2 -std=c++17 -I..
 LDFLAGS  =
+HEADERS  = $(wildcard *.hpp)
+OBJ      = \
+	main-stableswap-dynrate-lpf.cpp.o \
+	sim-threading.cpp.o
+
 
 all: main
 clean:
@@ -12,8 +17,8 @@ clean:
 test: main
 	bash test/run.sh
 
-main: main-stableswap-dynrate-lpf.cpp.o
+main: ${OBJ}
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $+ -o $@
 
-%.cpp.o: %.cpp
+%.cpp.o: %.cpp $(HEADERS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
