@@ -1379,7 +1379,6 @@ struct Trader {
         map<pair<int, int>, money> lasts;
         size_t N = price_oracle.size();
         u64 start_t = 0;
-        u64 end_t = 0;
         long double last_time = 0;
         long double last_time_tweak_price = 0;
         size_t total_elements = in->size / sizeof(trade_data);
@@ -1420,7 +1419,6 @@ struct Trader {
             if (i == 0) start_t = d.t;
             if (i == 0) last_time_tweak_price = d.t;
             if (i == 0) this->t = d.t;
-            end_t = d.t;
             if (last_time > 0) {
                 last_time = d.t - last_time;
             }
@@ -1565,7 +1563,8 @@ struct Trader {
                 // spot_prev = price_2(0, 1) * ps_pre / curve.p[1];
                 last_prices = cur_get_p * previous_price_scale;
                 last_time_tweak_price = d.t;
-
+                // XXX: Suppress unused
+                (void)norm;
             }
 
             money _xp[2];
