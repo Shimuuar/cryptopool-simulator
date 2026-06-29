@@ -55,7 +55,7 @@ struct trade_one {
     trade_data trade;
 };
 
-money mabs(money val) noexcept {
+static inline money mabs(money val) noexcept {
     return val >= 0 ? val : -val;
 }
 
