@@ -1,0 +1,38 @@
+{
+    "configuration": [
+        {
+            "A": 5,
+            "D": 20000000.0,
+            "Result": {
+                "APR_geo_mean": 0.0,
+                "APY": 0.07523723026822374,
+                "APY_boost": 0.05817033729966387,
+                "APY_boost_2": 0.05817033729966387,
+                "imbalance": 0.0685391430423489,
+                "imbalance_integral": 0.021953019206306313,
+                "liq_density": 5.889021282251237,
+                "slippage": 0.17129000203753314,
+                "volume": 3.9482102972716557
+            },
+            "adjustment_step": 0.005,
+            "allowed_extra_profit": 1e-10,
+            "boost_min": 0,
+            "boost_mul": 1,
+            "boost_rate": 0.016,
+            "ext_fee": 0.0002,
+            "fee_gamma": 0.005125,
+            "gamma": 0,
+            "gas_fee": 0,
+            "log": 1,
+            "lp_profit_fraction": 0.4049,
+            "ma_half_time": 600,
+            "mid_fee": 0.00535,
+            "n": 2,
+            "out_fee": 0.0131
+        }
+    ],
+    "datafile": [
+        "../btc"
+    ],
+    "debug": 0
+}
