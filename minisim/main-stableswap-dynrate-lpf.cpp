@@ -686,7 +686,7 @@ struct Curve {
             this->p.resize(n, 1.L);
         }
         this->x.resize(n);
-        for(int i = 0; i < n; i++) {
+        for(size_t i = 0; i < n; i++) {
             x[i] = D / n / p[i];
         }
     }
@@ -1234,7 +1234,7 @@ struct Trader {
         if (t > this->t) {
             money alpha = powl(0.5, ((money)(t - this->t) / this->ma_half_time));
             alpha = min(alpha, 1.L);
-            for (int k = 1; k < price_vector.size(); k++) {
+            for (size_t k = 1; k < price_vector.size(); k++) {
                 price_oracle[k] = price_vector[k] * (1 - alpha) + price_oracle[k] * alpha;
             }
             this->t = t;
