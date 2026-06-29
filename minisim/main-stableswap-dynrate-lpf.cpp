@@ -1334,9 +1334,11 @@ struct Trader {
             simdata->current = i;
             // if (i > 10) abort();
             trade_data d = *mapped_data_ptr++;
-            if (i == 0) start_t = d.t;
-            if (i == 0) last_time_tweak_price = d.t;
-            if (i == 0) this->t = d.t;
+            if (i == 0) {
+                start_t = d.t;
+                last_time_tweak_price = d.t;
+                this->t = d.t;
+            }
             if (last_time > 0) {
                 last_time = d.t - last_time;
             }
@@ -1763,17 +1765,11 @@ int main(int argc, char **argv) {
     }
 
     printf("Total %d configurations will be processed in %d threads\n", configurations, THREADS);
-    //for (auto const &cfg: jin["configuration"]) {
-    //    std::cout << std::setw(4) << cfg << "\n";
-    // }
-    //
     vector<money> price_vector;
     mapped_file test_data;
     if (!get_all(jin, LAST_ELEMS, price_vector, test_data)) {
         return 0;
     }
-    //debug_print("test_data first 5", test_data, 5);
-    //debug_print("test_data last 5", test_data, -5);
     double time_start = get_total_time();
     double wall_time_start = get_wall_time();
     std::queue<simulation_data> sim_queue;
