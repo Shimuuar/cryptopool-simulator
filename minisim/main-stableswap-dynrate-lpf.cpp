@@ -1406,7 +1406,7 @@ struct Trader {
         // TVL in coin0 units: sum_i x[i] * p[i] (p[0] == 1)
         vector<money> x_start = curve.x; // initial LP balances by coin
 
-        FILE *out_file;
+        FILE *out_file = nullptr;
         if (log) {
             out_file = fopen("detailed-output.json", "w");
             fprintf(out_file, "[");
