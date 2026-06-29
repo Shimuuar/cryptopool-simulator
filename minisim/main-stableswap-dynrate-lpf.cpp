@@ -392,24 +392,6 @@ money geometric_mean_2(money const *x) {
 
 money geometric_mean_3(money const *x) {
     // {0,1,2} {0,2,1} {1,0,2} {1,2,0} {2,0,1} {2,1,0}
-    auto median = [&x] {
-        money D = x[0];
-        if (x[0] >= x[1]) {
-            // {1,0,2} {2,0,1} {2,1,0}
-            if (x[0] >= x[2]) {
-                // {2,0,1} {2,1,0}
-                if (x[1] >= x[2]) D = x[2];
-                else D = x[1];
-            } // else {1,0,2}
-        } else {
-            // {0,1,2} {0,2,1} {1,2,0}
-            if (x[0] < x[2]) {
-                // {0,1,2} {0,2,1}
-                if (x[1] >= x[2]) D = x[2];
-                else D = x[1];
-            } // else {1,2,0}
-        }
-    };
     auto min_max_mean = [&x] {
         if (x[0] >= x[1]) {
             // {1,0,2} {2,0,1} {2,1,0}
@@ -523,8 +505,6 @@ auto newton_D_3(money A, money gamma, money const *xx, money D0) {
     //for (size_t j = 0; j < N; j++) { // XXX or just set A to be A*N**N?
     //    A = A * N;
     //}
-    money rev_gamma = 1.L / gamma;
-    money gamma_1 = 1.L + gamma;
 
     for (int i = 0; i < 255; i++) {
         money D_prev = D;
@@ -797,8 +777,6 @@ struct simulation_data {
 
 struct Trader {
     Trader(json const &jconf, vector<money> const &p0) : curve(jconf, p0) {
-        money A = jconf["A"];
-        money gamma = jconf["gamma"];
         money D = jconf["D"];
         int n = jconf["n"];
         mid_fee = jconf["mid_fee"];
@@ -858,7 +836,6 @@ struct Trader {
         // First calculate the ideal balance
         //  Then calculate, what the constant-product would be
         auto D = curve.D_3();
-        size_t N = 3;
         money X[3];
         for (size_t i = 0; i < 3; i++) {
             X[i] = D  / (3 * curve.p[i]);
@@ -870,7 +847,6 @@ struct Trader {
         // First calculate the ideal balance
         //  Then calculate, what the constant-product would be
         auto D = curve.D_2();
-        size_t N = 2;
         money X[2];
         for (size_t i = 0; i < 2; i++) {
             X[i] = D  / (2 * curve.p[i]);
@@ -1400,8 +1376,6 @@ struct Trader {
 
 
     void simulate(mapped_file const *in, simulation_data *simdata, extra_data *extdata) {
-        // vector<trade_data> const &mdata
-        const money CANDLE_VARIATIVES = 20;
         map<pair<int, int>, money> lasts;
         size_t N = price_oracle.size();
         u64 start_t = 0;
@@ -1419,7 +1393,6 @@ struct Trader {
         money antislippage = 0;
         money slippage_count = 0;
         money _slippage = 0; // initialize to avoid using garbage when price doesn't move
-        money spot_prev = price_2(0, 1);
         money last_prices = price_2(0, 1);
         money previous_price_scale = curve.p[1];
         money imbalance_integral = 0;
@@ -1432,14 +1405,7 @@ struct Trader {
         long long n_monthly_samples = 0;
         // Track TVL growth in coin0 units and HODL baseline
         // TVL in coin0 units: sum_i x[i] * p[i] (p[0] == 1)
-        auto tvl_in_coin0 = [&](vector<money> const &x, vector<money> const &p) -> long double {
-            long double v = 0;
-            for (size_t i = 0; i < x.size(); i++) v += (long double)(x[i] * p[i]);
-            return v;
-        };
         vector<money> x_start = curve.x; // initial LP balances by coin
-        long double tvl_start = tvl_in_coin0(curve.x, curve.p);
-        long double donation_coin0_total = 0.0L;
 
         FILE *out_file;
         if (log) {
@@ -1447,9 +1413,6 @@ struct Trader {
             fprintf(out_file, "[");
         }
         // Accumulator: sum of dt where relative deviation exceeds threshold
-        unsigned long long prev_t_for_dev = 0ULL;
-        long double sum_dt_dev_exceeds = 0.0L;
-
         for (size_t i = 0; i < total_elements; i++) {
             simdata->current = i;
             // if (i > 10) abort();
@@ -1596,10 +1559,7 @@ struct Trader {
             // only tweak_price every N seconds or on trade
             if (d.t - last_time_tweak_price >= 3600 || trade_happened) {
                 previous_price_scale = curve.p[1];
-                money log_oracle_pre = price_oracle[1];
                 money cur_get_p = curve.p_2(0, 1);
-                money log_vp_pre = xcp_profit_real;
-                money log_xcp_profit_pre = xcp_profit;
                 if (N == 2) norm = tweak_price_2(d.t, a, b, last_prices);
                 else        norm = tweak_price_3(d.t, a, b, (_high + _low) / 2.L);
                 // spot_prev = price_2(0, 1) * ps_pre / curve.p[1];
