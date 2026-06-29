@@ -23,30 +23,6 @@
 #define MAP_NOCACHE 0
 #endif
 using nlohmann::json;
-//#include "bn_fixed.h"
-#define DEBUG 0
-static int trace = DEBUG;
-#if DEBUG > 1
-#define T printf("Entering %s\n", __PRETTY_FUNCTION__)
-#define DBG printf("Now in %s line %d\n", __PRETTY_FUNCTION__ , __LINE__)
-#define E printf("Leaving %s\n", __PRETTY_FUNCTION__)
-#else
-#define T
-#define DBG
-#define E
-#endif
-#if DEBUG > 0
-#define P(x)      if (trace) printf("[%d] %s::%s=%s ", __LINE__, __FUNCTION__, #x, x.to_string(10).c_str())
-#define DP(x)      if (trace) printf("[%d] %s::%s=%.12Lf ", __LINE__, __FUNCTION__, #x, (long double)x)
-#define P256(x)    if (trace) { printf("[%d] %s::%s={", __LINE__, __FUNCTION__, #x);    for (size_t i = 0; i < x.size(); i++) printf("%s ", x[i].to_string(10).c_str()); printf("}\n"); }
-#define EOL     if (trace) printf("\n")
-#else
-#define P(x)
-#define DP(x)
-#define P256(x)
-#define EOL
-#endif
-
 using std::vector, std::string, std::pair, std::sort, std::map, std::min, std::max;
 
 using u64 = unsigned long long;
