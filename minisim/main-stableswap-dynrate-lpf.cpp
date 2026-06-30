@@ -733,6 +733,12 @@ struct Trader {
         this->light_tx = 0;
         this->is_light = false;
         this->t = 0;
+
+        // Initialize variables
+        APY = 0.0;
+        APY_boost = 0.0;
+        APY_boost_2 = 0.0;
+        APR_geo_mean = 0.0;
     }
 
 
