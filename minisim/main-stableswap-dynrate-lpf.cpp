@@ -1306,7 +1306,6 @@ struct Trader {
         size_t total_elements = in->size / sizeof(trade_data);
         simdata->total = total_elements;
         auto mapped_data = (trade_data const *) in->base;
-        auto mapped_data_ptr = mapped_data;
         money xcp_profit_real_prev = 1.L;
         money xcp_profit_real_adj = 1.L;
         money slippage = 0;
@@ -1337,7 +1336,7 @@ struct Trader {
         for (size_t i = 0; i < total_elements; i++) {
             simdata->current = i;
             // if (i > 10) abort();
-            trade_data d = *mapped_data_ptr++;
+            trade_data d = *mapped_data++;
             if (i == 0) {
                 start_t = d.t;
                 last_time_tweak_price = d.t;
