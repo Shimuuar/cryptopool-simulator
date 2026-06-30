@@ -270,7 +270,7 @@ TradeDataArray* get_all(json const &jin, int last_elems, vector<money> & price_v
         ret.erase(ret.begin(), ret.begin() + ret.size() - last_elems);
     }
     price_vector = get_price_vector(N, ret);
-    
+
     return new TradeDataVector(std::move(ret));
 }
 
@@ -764,279 +764,9 @@ struct Trader {
         return curve.p_2(i, j) * curve.p[j];
     }
 
-    auto step_for_price_3(money p_min, money p_max, pair<int, int> p, money vol, money ext_vol) {
-        money x0[3];
-        copy_money_3(x0, &curve.x[0]);
-        money _dx = 0;
-        money _dy = 0;
-        money x = 0;
-        money y = 0;
-        money price = 0;
-        money price_with_gas = 0;
-        bool good_with_gas = false;
-        auto _from = p.first;
-        auto _to = p.second;
-        if (p_min > 0) {
-            _from = p.second;
-            _to = p.first;
-        }
-        auto step0 = dx / curve.p[_from];  // step in units of currency being sold
-        auto step = step0;
-        money gas = gas_fee / curve.p[_from];
+    money step_for_price_3(money p_min, money p_max, pair<int, int> p, money vol, money ext_vol);
 
-        // + (step increases)
-        while (true) {
-            auto _dx_prev = _dx;
-            auto _dy_prev = _dy;
-
-            _dx += step;
-
-            // buy  -> x: first, y: second
-            // sell -> x: second, y: first
-
-            x = x0[_from] + _dx;
-            y = curve.y_3(x, _from, _to);
-
-            curve.x[_from] = x;
-            curve.x[_to] = y;
-            auto fee_mul = 1.L - this->fee_3();
-
-            _dy = (x0[_to] - y) * fee_mul;
-            curve.x[_to] = x0[_to] - _dy;
-
-            if (_from == p.first) {
-                price = _dx / _dy;
-                price_with_gas = (_dx + gas) / _dy;  // need to buy higher than without gas
-            }
-            else {
-                price = _dy / _dx;
-                price_with_gas = _dy / (_dx + gas); // need to sell lower than without gas
-            }
-            auto v = vol + _dy * curve.p[_to];
-
-            // Needed to prevent resonant trading which doesn't happen in reality
-            auto inst_price = price_3(p.first, p.second);
-            copy_money_3(&curve.x[0], x0);  // restore the state
-            // printf("::: %Lf %Lf %Lf %Lf\n", price, inst_price, p_min, p_max);
-
-            if ((p_min > 0 and (price_with_gas >= p_min) and inst_price >= p_min) or (p_max > 0 and (price_with_gas <= p_max) and inst_price <= p_max)) {
-                good_with_gas = true;
-            } else {
-                if (good_with_gas) {
-                    _dx = _dx_prev;
-                    _dy = _dy_prev;
-                    break;
-                }
-            }
-
-            if ((p_min > 0 and (price < p_min or inst_price < p_min)) or (p_max > 0 and (price > p_max or inst_price > p_max)) or (v > ext_vol / 2.L)) {
-                _dx = _dx_prev;
-                _dy = _dy_prev;
-                break;
-            }
-            // printf("*** price=%Lf, min=%Lf, max=%Lf, _dx=%Lf\n", price, p_min, p_max, _dx);
-
-            step += step;
-        }
-
-        // - (step decreases)
-        while (true) {
-            auto _dx_prev = _dx;
-            auto _dy_prev = _dy;
-            step /= 2;
-
-            if (step < step0) {
-                break;
-            }
-
-            _dx += step;
-
-            x = x0[_from] + _dx;
-            y = curve.y_3(x, _from, _to);
-
-            curve.x[_from] = x;
-            curve.x[_to] = y;
-            auto fee_mul = 1.L - this->fee_3();
-
-            _dy = (x0[_to] - y) * fee_mul;
-            curve.x[_to] = x0[_to] - _dy;
-
-            if (_from == p.first) {
-                price = _dx / _dy;
-                price_with_gas = (_dx + gas) / _dy;  // need to buy higher than without gas
-            }
-            else {
-                price = _dy / _dx;
-                price_with_gas = _dy / (_dx + gas); // need to sell lower than without gas
-            }
-            auto v = vol + _dy * curve.p[_to];
-
-            // Needed to prevent resonant trading which doesn't happen in reality
-            auto inst_price = price_3(p.first, p.second);
-            copy_money_3(&curve.x[0], x0);  // restore the state
-            // printf("::: %Lf %Lf %Lf %Lf\n", price, inst_price, p_min, p_max);
-
-            if ((p_min > 0 and (price_with_gas >= p_min) and inst_price >= p_min) or (p_max > 0 and (price_with_gas <= p_max) and inst_price <= p_max)) {
-                good_with_gas = true;
-            } else {
-                _dx = _dx_prev;
-                _dy = _dy_prev;
-            }
-            if (v > ext_vol / 2.L) {
-                 _dx = _dx_prev;
-                 _dy = _dy_prev;
-            }
-            // printf("*** price=%Lf, min=%Lf, max=%Lf, _dx=%Lf\n", price, p_min, p_max, _dx);
-        }
-
-        if (!good_with_gas) {
-            _dx = 0;
-        }
-
-        // printf("*** p_min=%Lf, p_max=%Lf, _dy=%Lf, y=%Lf\n", p_min, p_max, _dy, curve.x[_to]);
-        return _dx;
-    }
-
-    auto step_for_price_2(money p_min, money p_max, pair<int, int> p, money vol, money ext_vol) {
-        money x0[2];
-        copy_money_2(x0, &curve.x[0]);
-        money _dx = 0;
-        money _dy = 0;
-        money x = 0;
-        money y = 0;
-        money price = 0;
-        auto _from = p.first;
-        auto _to = p.second;
-        if (p_min > 0) {
-            _from = p.second;
-            _to = p.first;
-        }
-        auto step0 = dx / curve.p[_from];  // step in units of currency being sold
-        auto step = step0;
-        money gas = gas_fee / curve.p[_from];
-
-        money previous_profit = 0;
-
-        // + (step increases)
-        while (true) {
-            auto _dx_prev = _dx;
-            auto _dy_prev = _dy;
-
-            _dx += step;
-
-            // buy  -> x: first, y: second
-            // sell -> x: second, y: first
-
-            x = x0[_from] + _dx;
-            y = curve.y_2(x, _from, _to);
-
-            curve.x[_from] = x;
-            curve.x[_to] = y;
-            auto fee_mul = 1.L - this->fee_2();
-
-            _dy = (x0[_to] - y) * fee_mul;
-            curve.x[_to] = x0[_to] - _dy;
-
-            // price in units d_first / d_second
-            if (_from == p.first) {
-                price = _dx / _dy;
-            }
-            else {
-                price = _dy / _dx;
-            }
-            auto v = vol + _dy * curve.p[_to];
-
-            copy_money_2(&curve.x[0], x0);  // restore the state
-            // printf("::: %Lf %Lf %Lf %Lf\n", price, inst_price, p_min, p_max);
-
-            // _from == p.first - buy
-            // _from != p.first - sell
-            money new_profit;
-            if (_from == p.first)
-                new_profit = (_dx / price - _dx / p_max) * p_max;
-            else
-                new_profit = (price - p_min) * _dx;
-
-            // printf("*** price=%Lf, min=%Lf, max=%Lf, _dx=%Le, new_p=%Lf, pr_p=%Lf\n", price, p_min, p_max, _dx, new_profit, previous_profit);
-
-            if (new_profit > previous_profit and v <= ext_vol / 2.L) {
-                previous_profit = new_profit;
-            } else {
-                _dx = _dx_prev;
-                _dy = _dy_prev;
-                break;
-            }
-
-            step += step;
-        }
-
-        // - (step decreases)
-        while (true) {
-            auto _dx_prev = _dx;
-            auto _dy_prev = _dy;
-            if (step < 0) step = -step;
-            step /= 2;
-
-            if (step < step0) {
-                break;
-            }
-
-            for (int ctr=0;ctr<2;ctr++) {
-                step = -step;
-                _dx = _dx_prev + step;
-
-                x = x0[_from] + _dx;
-                y = curve.y_2(x, _from, _to);
-
-                curve.x[_from] = x;
-                curve.x[_to] = y;
-                auto fee_mul = 1.L - this->fee_2();
-
-                _dy = (x0[_to] - y) * fee_mul;
-                curve.x[_to] = x0[_to] - _dy;
-
-                if (_from == p.first) {
-                    price = _dx / _dy;
-                }
-                else {
-                    price = _dy / _dx;
-                }
-                auto v = vol + _dy * curve.p[_to];
-
-                copy_money_2(&curve.x[0], x0);  // restore the state
-
-                
-                // _from == p.first - buy
-                // _from != p.first - sell
-                money new_profit;
-                if (_from == p.first)
-                    new_profit = (_dx / price - _dx / p_max) * p_max;
-                else
-                    new_profit = (price - p_min) * _dx;
-
-                if (new_profit > previous_profit and v <= ext_vol / 2.L) {
-                    previous_profit = new_profit;
-                    break;
-                } else {
-                    _dx = _dx_prev;
-                    _dy = _dy_prev;
-                }
-            }
-        }
-        // printf("*** p_min=%Lf, p_max=%Lf, _dy=%Lf, y=%Lf\n", p_min, p_max, _dy, curve.x[_to]);
-
-        if (_from == p.first) {
-            price = (_dx + gas) / _dy;  // need to buy higher than without gas
-            previous_profit = (_dx / price - _dx / p_max) * p_max;
-        }
-        else {
-            price = _dy / (_dx + gas); // need to sell lower than without gas
-            previous_profit = (price - p_min) * _dx;
-        }
-
-        if (previous_profit <= 0) _dx = 0;
-        return _dx;
-    }
+    money step_for_price_2(money p_min, money p_max, pair<int, int> p, money vol, money ext_vol);
 
     void update_xcp_3(bool only_real=false) {
         auto _xcp = get_xcp_3();
@@ -1135,453 +865,11 @@ struct Trader {
         }
     }
 
-    auto tweak_price_2(u64 t, int /*a*/, int /*b*/, money spot_prev) {
-        const int N = 2;
-    
-        // --- Feed the EMA with the pool's own spot (pre-fee marginal price),
-        //     coin0 per coin1, computed at the current state.
-        money amm_p01 = spot_prev;             // dx/dy (coin0 per coin1)
-        // money amm_p01 = price_2(0, 1);
-        // Optional: cap like the real pool (avoid extreme oracle jumps)
-        money capped_p01 = std::min(amm_p01, 2.L * curve.p[1]);
-    
-        std::vector<money> spot = {1.L, capped_p01};
-        ma_recorder(t, spot);
-    
-
-        // # price_oracle looks like [1, p1, p2, ...] normalized to 1e18
-        money S = 0;
-        for (size_t i = 0; i < N; i++) {
-            auto t = price_oracle[i] / curve.p[i] - 1.L;
-            S += t*t;
-        }
-        auto norm = S;
-        norm = sqrt(norm); // .root_to();
-        auto _adjustment_step = min(adjustment_step, norm / 5);
-        if (norm <= _adjustment_step) {
-            // Already close to the target price
-            is_light = true;
-            light_tx += 1;
-            return norm;
-        }
-        if (not not_adjusted and (xcp_profit_real > xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction) + allowed_extra_profit)) {
-            not_adjusted = true;
-        }
-        if (not not_adjusted) {
-            light_tx += 1;
-            is_light = true;
-            return norm;
-        }
-        heavy_tx += 1;
-        is_light = false;
-
-        money p_new[MAX_ARRAY];
-        p_new[0] = 1.L;
-        for (size_t i = 1; i < price_oracle.size(); i++) {
-            auto p_target = curve.p[i];
-            auto p_real = price_oracle[i];
-            p_new[i] = p_target + _adjustment_step * (p_real - p_target) / norm;
-        }
-        money old_p[MAX_ARRAY];
-        copy_money_2(old_p, &curve.p[0]);
-
-        auto old_profit = xcp_profit_real;
-        auto old_xcp = xcp;
-
-        copy_money_2(&curve.p[0],p_new);
-        update_xcp_2(true);
-
-        if (xcp_profit_real <= xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction)) {
-            //  If real profit is less than equilibrium - revert params back
-            copy_money_2(&curve.p[0], old_p);
-            xcp_profit_real = old_profit;
-            xcp = old_xcp;
-            not_adjusted = false;
-            // auto val = ((xcp_profit_real - 1.L - (xcp_profit - 1.L) / 2.L));
-            // printf("%.10Lf\n", val);
-        }
-        return norm;
-    }
+    money tweak_price_2(u64 t, int /*a*/, int /*b*/, money spot_prev);
+    money tweak_price_3(u64 t, int a, int b, money p);
 
 
-    auto tweak_price_3(u64 t, int a, int b, money p) {
-        ma_recorder(t, last_price);
-        const size_t N = 3;
-        if (b > 0) {
-            last_price[b] = p * last_price[a];
-        } else {
-            last_price[a] = last_price[0] / p;
-        }
-
-        // # price_oracle looks like [1, p1, p2, ...] normalized to 1e18
-        money S = 0;
-        for (size_t i = 0; i < N; i++) {
-            auto t = price_oracle[i] / curve.p[i] - 1.L;
-            S += t*t;
-        }
-        auto norm = S;
-        norm = sqrt(norm); // .root_to();
-        auto _adjustment_step = max(adjustment_step, norm / 5);
-        if (norm <= _adjustment_step) {
-            // Already close to the target price
-            is_light = true;
-            light_tx += 1;
-            return norm;
-        }
-        if (not not_adjusted and (xcp_profit_real > xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction) + allowed_extra_profit * xcp_profit_real)) {
-            not_adjusted = true;
-        }
-        if (not not_adjusted) {
-            light_tx += 1;
-            is_light = true;
-            return norm;
-        }
-        heavy_tx += 1;
-        is_light = false;
-
-        money p_new[MAX_ARRAY];
-        p_new[0] = 1.L;
-        for (size_t i = 1; i < price_oracle.size(); i++) {
-            auto p_target = curve.p[i];
-            auto p_real = price_oracle[i];
-            p_new[i] = p_target + _adjustment_step * (p_real - p_target) / norm;
-        }
-        money old_p[MAX_ARRAY];
-        copy_money_3(old_p, &curve.p[0]);
-
-        auto old_profit = xcp_profit_real;
-        auto old_xcp = xcp;
-
-        copy_money_3(&curve.p[0],p_new);
-        if (N == 3) update_xcp_3(true);
-        else        update_xcp_2(true);
-
-        if (xcp_profit_real <= xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction)) {
-            //  If real profit is less than equilibrium - revert params back
-            copy_money_3(&curve.p[0], old_p);
-            xcp_profit_real = old_profit;
-            xcp = old_xcp;
-            not_adjusted = false;
-            // auto val = ((xcp_profit_real - 1.L - (xcp_profit - 1.L) / 2.L));
-            // printf("%.10Lf\n", val);
-        }
-        return norm;
-    }
-
-
-    void simulate(simulation_data *simdata, extra_data *extdata) {
-        map<pair<int, int>, money> lasts;
-        size_t N = price_oracle.size();
-        u64 start_t = 0;
-        long double last_time = 0;
-        long double last_time_tweak_price = 0;
-        size_t total_elements = simdata->test_data->size();
-        simdata->total = total_elements;
-        const trade_data* mapped_data = simdata->test_data->array();
-        money xcp_profit_real_prev = 1.L;
-        money xcp_profit_real_adj = 1.L;
-        money slippage = 0;
-        money imbalance = 0;
-        money antislippage = 0;
-        money slippage_count = 0;
-        money _slippage = 0; // initialize to avoid using garbage when price doesn't move
-        money last_prices = price_2(0, 1);
-        money previous_price_scale = curve.p[1];
-        money imbalance_integral = 0;
-        // Moving 1-month window geometric-mean APY tracking
-        const u64 TW_APR_SECONDS = 2 * 30 * 86400;  // time window for APR_geo_mean
-        const money TW_APR_PER_YEAR = (365.L * 86400.L) / TW_APR_SECONDS;
-        std::deque<std::pair<u64, money>> xcp_history;
-        money sum_log_tw_apr = 0;
-        money tw_apr = 0;
-        long long n_monthly_samples = 0;
-        // Track TVL growth in coin0 units and HODL baseline
-        // TVL in coin0 units: sum_i x[i] * p[i] (p[0] == 1)
-        vector<money> x_start = curve.x; // initial LP balances by coin
-
-        FILE *out_file = nullptr;
-        if (log) {
-            out_file = fopen("detailed-output.json", "w");
-            fprintf(out_file, "[");
-        }
-        // Accumulator: sum of dt where relative deviation exceeds threshold
-        for (size_t i = 0; i < total_elements; i++) {
-            simdata->current = i;
-            // if (i > 10) abort();
-            trade_data d = *mapped_data++;
-            if (i == 0) {
-                start_t = d.t;
-                last_time_tweak_price = d.t;
-                this->t = d.t;
-            }
-            if (last_time > 0) {
-                last_time = d.t - last_time;
-            }
-
-            auto a = d.pair1.first;
-            auto b = d.pair1.second;
-            money vol{0.L};
-            auto ext_vol = money(d.volume * price_oracle[b]); //  <- now all is in USD
-            int ctr{0};
-            money last;
-            auto itl = lasts.find({a, b});
-            if (itl == lasts.end()) {
-                last = price_oracle[b] / price_oracle[a];
-            } else {
-                last = itl->second;
-            }
-            auto _high = last;
-            auto _low = last;
-            _slippage = 0; // reset per-iteration before any accumulation
-
-            auto max_price = d.high * (1 - ext_fee);
-            auto min_price = d.low * (1 + ext_fee);
-            money _dx = 0;
-            auto p_before = N == 3 ? price_3(a, b) : price_2(a, b);
-            bool trade_happened = false;
-            auto apply_tweak_trade = [&](money spot_prev) {
-                if (N == 2) {
-                    money ps_before = curve.p[1];
-                    money cur_get_p = curve.p_2(0, 1);
-                    (void)spot_prev;
-                    tweak_price_2(d.t, a, b, last_prices);
-                    last_prices = cur_get_p * ps_before;
-                    last_time_tweak_price = d.t;
-                } else {
-                    tweak_price_3(d.t, a, b, spot_prev);
-                    last_time_tweak_price = d.t;
-                }
-            };
-
-            if ((max_price != 0) & (max_price > p_before)) {
-                auto step = N == 3 ? step_for_price_3(0, max_price, d.pair1, vol, ext_vol) : step_for_price_2(0, max_price, d.pair1, vol, ext_vol);
-                if (step > 0) {
-                    // printf("+++ %Lf %Lf %d %d\n", curve.x[a], curve.x[b], a, b);
-                    auto dy = N == 3 ? exchange_3(step, a, b) : exchange_2(step, a, b);
-                    // printf("+++ %Lf %Lf\n", curve.x[a], curve.x[b]);
-                    vol += step * price_oracle[a];
-                    _dx += dy;
-                    last = N == 3 ? price_3(a, b) : price_2(a, b);
-                    ctr += 1;
-                }
-            }
-
-            auto p_after = N == 3 ? price_3(a, b) : price_2(a, b);
-            // auto _fee = N == 3 ? fee_3() : fee_2();
-            // printf("!!! %d %d\n", a, b);
-            // printf("!!!1 %Lf %Lf\n", p_after, last);
-
-            if (p_before != p_after) {
-                auto v = _dx / (curve.x[b] + curve.x[a] / p_after) * N / 2;
-                _slippage = (_dx * (p_before + p_after)) / (2.L * (mabs(p_before - p_after)) * curve.x[b]);
-                volume += v;
-            }
-            if (_slippage > 1e-10) {
-                slippage_count += last_time;
-                antislippage += last_time * _slippage;
-                slippage += last_time / _slippage;
-                imbalance += mabs(logl((_high + _low) / (2.L * curve.p[1]))) * curve.A * last_time;
-            }
-            _high = last;
-
-            if (ctr > 0) {
-                if (_low == 0) _low = last;
-                apply_tweak_trade((_high + _low) / 2.L);
-                ctr = 0;
-            }
-
-            _dx = 0;
-            p_before = p_after;
-
-            if ((min_price != 0) && (min_price < p_before)) {
-                auto step = N == 3 ? step_for_price_3(min_price, 0, d.pair1, vol, ext_vol) : step_for_price_2(min_price, 0, d.pair1, vol, ext_vol);
-                if (step > 0) {
-                    // printf("=== %Lf %Lf %d %d\n", curve.x[a], curve.x[b], a, b);
-                    auto dy = N == 3 ? exchange_3(step, b, a) : exchange_2(step, b, a);
-                    // printf("=== %Lf %Lf %d %d\n", curve.x[a], curve.x[b], a, b);
-                    // printf("!===! %Lf %Lf\n", step, dy);
-                    vol += dy * price_oracle[a];
-                    _dx += step;
-                    last = N == 3 ? price_3(a, b) : price_2(a, b);
-                    ctr += 1;
-                }
-            }
-
-            p_after = N == 3 ? price_3(a, b) : price_2(a, b);
-            // _fee = N == 3 ? fee_3() : fee_2();
-            // printf("!!!2 %Lf %Lf\n", p_after, last);
-
-            if (p_before != p_after) {
-                auto v = _dx / (curve.x[b] + curve.x[a] / p_after) * N / 2;
-                _slippage = (_dx * (p_before + p_after)) / (2.L * (mabs(p_before - p_after)) * curve.x[b]);
-                volume += v;
-            }
-            if (_slippage > 1e-10) {
-                slippage_count += last_time;
-                antislippage += last_time * _slippage;
-                slippage += last_time / _slippage;
-                imbalance += logl(mabs((_high + _low) / (2.L * curve.p[1]))) * curve.A * last_time;
-            }
-
-            _low = last;
-            if (ctr > 0) {
-                if (_high == 0) _high = last;
-                apply_tweak_trade((_high + _low) / 2.L);
-                ctr = 0;
-            }
-            lasts[d.pair1] = last;
-
-            auto local_boost_rate = this->boost_rate;
-            if (mid_fee < out_fee)
-                local_boost_rate *= 1 + (fee_2() - mid_fee) / (out_fee - mid_fee) * (this->boost_mul - 1);
-
-            // Boost with special donations to the pool
-            if (this->boost_rate > 0) {
-                auto _boost = (1.L + last_time * local_boost_rate);
-                curve.x[0] = curve.x[0] * _boost;
-                curve.x[1] = curve.x[1] * _boost;
-                if (N == 3) {
-                    curve.x[2] = curve.x[2] * _boost;
-                }
-                xcp_profit_real *= _boost;
-                xcp *= _boost;
-                this->boost_integral *= _boost;
-            }
-
-            long double norm = 0;
-            // only tweak_price every N seconds or on trade
-            if (d.t - last_time_tweak_price >= 3600 || trade_happened) {
-                previous_price_scale = curve.p[1];
-                money cur_get_p = curve.p_2(0, 1);
-                if (N == 2) norm = tweak_price_2(d.t, a, b, last_prices);
-                else        norm = tweak_price_3(d.t, a, b, (_high + _low) / 2.L);
-                // spot_prev = price_2(0, 1) * ps_pre / curve.p[1];
-                last_prices = cur_get_p * previous_price_scale;
-                last_time_tweak_price = d.t;
-                // XXX: Suppress unused
-                (void)norm;
-            }
-
-            money _xp[2];
-            curve.xp_2(_xp);
-            money bal_mul = (_xp[0] + _xp[1]);
-            money ideal_vp = xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction);
-            bal_mul = 4 * _xp[0] * _xp[1] / (bal_mul * bal_mul);
-            // xcp_profit_real_adj *= (ideal_vp / xcp_profit_real_prev - 1.L) * bal_mul * bal_mul + 1.L;
-            xcp_profit_real_adj *= (ideal_vp / xcp_profit_real_prev);
-            xcp_profit_real_prev = ideal_vp;
-
-            total_vol += vol;
-            imbalance_integral += (1.L - bal_mul) * last_time;  // last_time is dt here
-            last_time = d.t;
-            long double ARU_x = ideal_vp;
-            long double ARU_y = (86400.L * 365.L / (d.t - start_t + 1.L));
-            APY = powl(ARU_x, ARU_y) - 1.L;
-            APY_boost = powl(ideal_vp / this->boost_integral, ARU_y) - 1.L;
-            APY_boost_2 = powl(xcp_profit_real_adj / this->boost_integral, ARU_y) - 1.L;
-            // Moving 1-month window geometric-mean APR
-            xcp_history.push_back({d.t, xcp_profit_real_adj / this->boost_integral});
-            // Advance front to the closest entry at or before (d.t - TW_APR_SECONDS)
-            while (xcp_history.size() > 1 &&
-                   xcp_history[1].first <= d.t - TW_APR_SECONDS) {
-                xcp_history.pop_front();
-            }
-            if (d.t - xcp_history.front().first >= TW_APR_SECONDS) {
-                money tw_growth = (xcp_profit_real_adj / this->boost_integral) / xcp_history.front().second;
-                tw_apr = max((tw_growth - 1.L) * TW_APR_PER_YEAR, 1e-20L);
-                sum_log_tw_apr += logl(tw_apr);
-                n_monthly_samples++;
-                APR_geo_mean = expl(sum_log_tw_apr / n_monthly_samples);
-            }
-            if (i % 1024 == 0 && log) {
-                try {
-                    long double last01, last02 = 0.0;
-                    auto it01 = lasts.find({0, 1});
-                    if (it01 == lasts.end()) {
-                        last01 = price_oracle[1] / price_oracle[0];
-                    } else {
-                        last01 = it01->second;
-                    }
-                    if (N == 3) {
-                        auto it02 = lasts.find({0, 2});
-                        if (it02 == lasts.end()) {
-                            last02 = price_oracle[2] / price_oracle[0];
-                        } else {
-                            last02 = it02->second;
-                        }
-                    }
-                    if (N == 3) {
-                        printf("t=%llu %.1Lf%%\ttrades: %d\t"
-                               "AMM: %.3Lf, %0.3Lf\tTarget: %.3Lf, %.3Lf\t"
-                               "Vol: %.4Lf\tPR:%.2Lf\txCP-growth: {%.10Lf}\t"
-                               "APY:%.1Lf%%\ttw_apr:%.1Lf%%\tfee:%.3Lf%% %c\n",
-                               d.t,
-                               100.L * i / total_elements, ctr, last01, last02,
-                               curve.p[1],
-                               curve.p[2],
-                               total_vol,
-                               (xcp_profit_real - 1.) / (xcp_profit - 1.L),
-                               xcp_profit_real,
-                               APY * 100.L,
-                               tw_apr * 100.L,
-                               (curve.p.size() == 3 ? fee_3() : fee_2()) * 100.L,
-                               is_light ? '*' : '.');
-                    } else if (N == 2) {
-                        printf("t=%llu %.1Lf%%\ttrades: %d\tAMM: %.5Lf\tTarget: %.5Lf\tVol: %.4Lf\tPR:%.2Lf\txCP-growth: {%.10Lf}\tAPY:%.1Lf%%\ttw_apr:%.1Lf%%\tfee:%.3Lf%% %c\n",
-                                d.t,
-                                100.L * i / total_elements,
-                                ctr,
-                                last01,
-                                curve.p[1],
-                                total_vol,
-                                (xcp_profit_real - 1.) / (xcp_profit - 1.L),
-                                xcp_profit_real,
-                                APY * 100.L,
-                                tw_apr * 100.L,
-                                fee_2() * 100.L,
-                                is_light ? '*' : '.');
-
-                    }
-                } catch (std::exception const &e) {
-                    printf("caught '%s'\n", e.what());
-                }
-            }
-
-            if (log) {
-                fprintf(out_file, "{\"t\": %llu, \"token0\": %.6Le, \"token1\": %.6Le, \"price_oracle\": %.6Le, \"price_scale\": %.6Le, \"profit\": %.6Le, \"xcp\": %.6Le, \"open\": %.6Le, \"high\": %.6Le, \"low\": %.6Le, \"close\": %.6Le, \"boost_rate\": %.6Le}",
-                        d.t,
-                        curve.x[0],
-                        curve.x[1],
-                        price_oracle[b] / price_oracle[a],
-                        curve.p[1],
-                        xcp_profit_real - 1.0,
-                        xcp_profit,
-                        d.open, d.high, d.low, d.close,
-                        local_boost_rate);
-                if (i < total_elements - 1) {
-                    fprintf(out_file, ",\n");
-                }
-            }
-
-            if (slippage > 1e20 and slippage_count > 0) {
-                printf("*** Slippage is too high %.5Lf\n", slippage);
-            }
-        }
-        extdata->imbalance_integral = imbalance_integral / (this->t - start_t + 1.L);
-        extdata->slippage = slippage / slippage_count / 2.L;
-        extdata->imbalance = imbalance / slippage_count / 2.L;
-        extdata->liq_density = 2.L * antislippage / slippage_count;
-        extdata->APY = APY;
-        extdata->volume = volume;
-        extdata->APY_boost = APY_boost;
-        extdata->APY_boost_2 = APY_boost_2;
-        extdata->APR_geo_mean = APR_geo_mean;
-
-        if (log) {
-            fprintf(out_file, "]");
-        }
-    }
-
+    void simulate(simulation_data *simdata, extra_data *extdata);
 
     vector<money> p0;
     vector<money> price_oracle;
@@ -1622,6 +910,726 @@ struct Trader {
     bool is_light;
     Curve curve;
 };
+
+money Trader::step_for_price_2(money p_min, money p_max, pair<int, int> p, money vol, money ext_vol) {
+    money x0[2];
+    copy_money_2(x0, &curve.x[0]);
+    money _dx = 0;
+    money _dy = 0;
+    money x = 0;
+    money y = 0;
+    money price = 0;
+    auto _from = p.first;
+    auto _to = p.second;
+    if (p_min > 0) {
+        _from = p.second;
+        _to = p.first;
+    }
+    auto step0 = dx / curve.p[_from];  // step in units of currency being sold
+    auto step = step0;
+    money gas = gas_fee / curve.p[_from];
+
+    money previous_profit = 0;
+
+    // + (step increases)
+    while (true) {
+        auto _dx_prev = _dx;
+        auto _dy_prev = _dy;
+
+        _dx += step;
+
+        // buy  -> x: first, y: second
+        // sell -> x: second, y: first
+
+        x = x0[_from] + _dx;
+        y = curve.y_2(x, _from, _to);
+
+        curve.x[_from] = x;
+        curve.x[_to] = y;
+        auto fee_mul = 1.L - this->fee_2();
+
+        _dy = (x0[_to] - y) * fee_mul;
+        curve.x[_to] = x0[_to] - _dy;
+
+        // price in units d_first / d_second
+        if (_from == p.first) {
+            price = _dx / _dy;
+        }
+        else {
+            price = _dy / _dx;
+        }
+        auto v = vol + _dy * curve.p[_to];
+
+        copy_money_2(&curve.x[0], x0);  // restore the state
+        // printf("::: %Lf %Lf %Lf %Lf\n", price, inst_price, p_min, p_max);
+
+        // _from == p.first - buy
+        // _from != p.first - sell
+        money new_profit;
+        if (_from == p.first)
+            new_profit = (_dx / price - _dx / p_max) * p_max;
+        else
+            new_profit = (price - p_min) * _dx;
+
+        // printf("*** price=%Lf, min=%Lf, max=%Lf, _dx=%Le, new_p=%Lf, pr_p=%Lf\n", price, p_min, p_max, _dx, new_profit, previous_profit);
+
+        if (new_profit > previous_profit and v <= ext_vol / 2.L) {
+            previous_profit = new_profit;
+        } else {
+            _dx = _dx_prev;
+            _dy = _dy_prev;
+            break;
+        }
+
+        step += step;
+    }
+
+    // - (step decreases)
+    while (true) {
+        auto _dx_prev = _dx;
+        auto _dy_prev = _dy;
+        if (step < 0) step = -step;
+        step /= 2;
+
+        if (step < step0) {
+            break;
+        }
+
+        for (int ctr=0;ctr<2;ctr++) {
+            step = -step;
+            _dx = _dx_prev + step;
+
+            x = x0[_from] + _dx;
+            y = curve.y_2(x, _from, _to);
+
+            curve.x[_from] = x;
+            curve.x[_to] = y;
+            auto fee_mul = 1.L - this->fee_2();
+
+            _dy = (x0[_to] - y) * fee_mul;
+            curve.x[_to] = x0[_to] - _dy;
+
+            if (_from == p.first) {
+                price = _dx / _dy;
+            }
+            else {
+                price = _dy / _dx;
+            }
+            auto v = vol + _dy * curve.p[_to];
+
+            copy_money_2(&curve.x[0], x0);  // restore the state
+
+
+            // _from == p.first - buy
+            // _from != p.first - sell
+            money new_profit;
+            if (_from == p.first)
+                new_profit = (_dx / price - _dx / p_max) * p_max;
+            else
+                new_profit = (price - p_min) * _dx;
+
+            if (new_profit > previous_profit and v <= ext_vol / 2.L) {
+                previous_profit = new_profit;
+                break;
+            } else {
+                _dx = _dx_prev;
+                _dy = _dy_prev;
+            }
+        }
+    }
+    // printf("*** p_min=%Lf, p_max=%Lf, _dy=%Lf, y=%Lf\n", p_min, p_max, _dy, curve.x[_to]);
+
+    if (_from == p.first) {
+        price = (_dx + gas) / _dy;  // need to buy higher than without gas
+        previous_profit = (_dx / price - _dx / p_max) * p_max;
+    }
+    else {
+        price = _dy / (_dx + gas); // need to sell lower than without gas
+        previous_profit = (price - p_min) * _dx;
+    }
+
+    if (previous_profit <= 0) _dx = 0;
+    return _dx;
+}
+
+money Trader::step_for_price_3(money p_min, money p_max, pair<int, int> p, money vol, money ext_vol) {
+    money x0[3];
+    copy_money_3(x0, &curve.x[0]);
+    money _dx = 0;
+    money _dy = 0;
+    money x = 0;
+    money y = 0;
+    money price = 0;
+    money price_with_gas = 0;
+    bool good_with_gas = false;
+    auto _from = p.first;
+    auto _to = p.second;
+    if (p_min > 0) {
+        _from = p.second;
+        _to = p.first;
+    }
+    auto step0 = dx / curve.p[_from];  // step in units of currency being sold
+    auto step = step0;
+    money gas = gas_fee / curve.p[_from];
+
+    // + (step increases)
+    while (true) {
+        auto _dx_prev = _dx;
+        auto _dy_prev = _dy;
+
+        _dx += step;
+
+        // buy  -> x: first, y: second
+        // sell -> x: second, y: first
+
+        x = x0[_from] + _dx;
+        y = curve.y_3(x, _from, _to);
+
+        curve.x[_from] = x;
+        curve.x[_to] = y;
+        auto fee_mul = 1.L - this->fee_3();
+
+        _dy = (x0[_to] - y) * fee_mul;
+        curve.x[_to] = x0[_to] - _dy;
+
+        if (_from == p.first) {
+            price = _dx / _dy;
+            price_with_gas = (_dx + gas) / _dy;  // need to buy higher than without gas
+        }
+        else {
+            price = _dy / _dx;
+            price_with_gas = _dy / (_dx + gas); // need to sell lower than without gas
+        }
+        auto v = vol + _dy * curve.p[_to];
+
+        // Needed to prevent resonant trading which doesn't happen in reality
+        auto inst_price = price_3(p.first, p.second);
+        copy_money_3(&curve.x[0], x0);  // restore the state
+        // printf("::: %Lf %Lf %Lf %Lf\n", price, inst_price, p_min, p_max);
+
+        if ((p_min > 0 and (price_with_gas >= p_min) and inst_price >= p_min) or (p_max > 0 and (price_with_gas <= p_max) and inst_price <= p_max)) {
+            good_with_gas = true;
+        } else {
+            if (good_with_gas) {
+                _dx = _dx_prev;
+                _dy = _dy_prev;
+                break;
+            }
+        }
+
+        if ((p_min > 0 and (price < p_min or inst_price < p_min)) or (p_max > 0 and (price > p_max or inst_price > p_max)) or (v > ext_vol / 2.L)) {
+            _dx = _dx_prev;
+            _dy = _dy_prev;
+            break;
+        }
+        // printf("*** price=%Lf, min=%Lf, max=%Lf, _dx=%Lf\n", price, p_min, p_max, _dx);
+
+        step += step;
+    }
+
+    // - (step decreases)
+    while (true) {
+        auto _dx_prev = _dx;
+        auto _dy_prev = _dy;
+        step /= 2;
+
+        if (step < step0) {
+            break;
+        }
+
+        _dx += step;
+
+        x = x0[_from] + _dx;
+        y = curve.y_3(x, _from, _to);
+
+        curve.x[_from] = x;
+        curve.x[_to] = y;
+        auto fee_mul = 1.L - this->fee_3();
+
+        _dy = (x0[_to] - y) * fee_mul;
+        curve.x[_to] = x0[_to] - _dy;
+
+        if (_from == p.first) {
+            price = _dx / _dy;
+            price_with_gas = (_dx + gas) / _dy;  // need to buy higher than without gas
+        }
+        else {
+            price = _dy / _dx;
+            price_with_gas = _dy / (_dx + gas); // need to sell lower than without gas
+        }
+        auto v = vol + _dy * curve.p[_to];
+
+        // Needed to prevent resonant trading which doesn't happen in reality
+        auto inst_price = price_3(p.first, p.second);
+        copy_money_3(&curve.x[0], x0);  // restore the state
+        // printf("::: %Lf %Lf %Lf %Lf\n", price, inst_price, p_min, p_max);
+
+        if ((p_min > 0 and (price_with_gas >= p_min) and inst_price >= p_min) or (p_max > 0 and (price_with_gas <= p_max) and inst_price <= p_max)) {
+            good_with_gas = true;
+        } else {
+            _dx = _dx_prev;
+            _dy = _dy_prev;
+        }
+        if (v > ext_vol / 2.L) {
+            _dx = _dx_prev;
+            _dy = _dy_prev;
+        }
+        // printf("*** price=%Lf, min=%Lf, max=%Lf, _dx=%Lf\n", price, p_min, p_max, _dx);
+    }
+
+    if (!good_with_gas) {
+        _dx = 0;
+    }
+
+    // printf("*** p_min=%Lf, p_max=%Lf, _dy=%Lf, y=%Lf\n", p_min, p_max, _dy, curve.x[_to]);
+    return _dx;
+}
+
+void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
+    map<pair<int, int>, money> lasts;
+    size_t N = price_oracle.size();
+    u64 start_t = 0;
+    long double last_time = 0;
+    long double last_time_tweak_price = 0;
+    size_t total_elements = simdata->test_data->size();
+    simdata->total = total_elements;
+    const trade_data* mapped_data = simdata->test_data->array();
+    money xcp_profit_real_prev = 1.L;
+    money xcp_profit_real_adj = 1.L;
+    money slippage = 0;
+    money imbalance = 0;
+    money antislippage = 0;
+    money slippage_count = 0;
+    money _slippage = 0; // initialize to avoid using garbage when price doesn't move
+    money last_prices = price_2(0, 1);
+    money previous_price_scale = curve.p[1];
+    money imbalance_integral = 0;
+    // Moving 1-month window geometric-mean APY tracking
+    const u64 TW_APR_SECONDS = 2 * 30 * 86400;  // time window for APR_geo_mean
+    const money TW_APR_PER_YEAR = (365.L * 86400.L) / TW_APR_SECONDS;
+    std::deque<std::pair<u64, money>> xcp_history;
+    money sum_log_tw_apr = 0;
+    money tw_apr = 0;
+    long long n_monthly_samples = 0;
+    // Track TVL growth in coin0 units and HODL baseline
+    // TVL in coin0 units: sum_i x[i] * p[i] (p[0] == 1)
+    vector<money> x_start = curve.x; // initial LP balances by coin
+
+    FILE *out_file = nullptr;
+    if (log) {
+        out_file = fopen("detailed-output.json", "w");
+        fprintf(out_file, "[");
+    }
+    // Accumulator: sum of dt where relative deviation exceeds threshold
+    for (size_t i = 0; i < total_elements; i++) {
+        simdata->current = i;
+        // if (i > 10) abort();
+        trade_data d = *mapped_data++;
+        if (i == 0) {
+            start_t = d.t;
+            last_time_tweak_price = d.t;
+            this->t = d.t;
+        }
+        if (last_time > 0) {
+            last_time = d.t - last_time;
+        }
+
+        auto a = d.pair1.first;
+        auto b = d.pair1.second;
+        money vol{0.L};
+        auto ext_vol = money(d.volume * price_oracle[b]); //  <- now all is in USD
+        int ctr{0};
+        money last;
+        auto itl = lasts.find({a, b});
+        if (itl == lasts.end()) {
+            last = price_oracle[b] / price_oracle[a];
+        } else {
+            last = itl->second;
+        }
+        auto _high = last;
+        auto _low = last;
+        _slippage = 0; // reset per-iteration before any accumulation
+
+        auto max_price = d.high * (1 - ext_fee);
+        auto min_price = d.low * (1 + ext_fee);
+        money _dx = 0;
+        auto p_before = N == 3 ? price_3(a, b) : price_2(a, b);
+        bool trade_happened = false;
+        auto apply_tweak_trade = [&](money spot_prev) {
+            if (N == 2) {
+                money ps_before = curve.p[1];
+                money cur_get_p = curve.p_2(0, 1);
+                (void)spot_prev;
+                tweak_price_2(d.t, a, b, last_prices);
+                last_prices = cur_get_p * ps_before;
+                last_time_tweak_price = d.t;
+            } else {
+                tweak_price_3(d.t, a, b, spot_prev);
+                last_time_tweak_price = d.t;
+            }
+        };
+
+        if ((max_price != 0) & (max_price > p_before)) {
+            auto step = N == 3 ? step_for_price_3(0, max_price, d.pair1, vol, ext_vol) : step_for_price_2(0, max_price, d.pair1, vol, ext_vol);
+            if (step > 0) {
+                // printf("+++ %Lf %Lf %d %d\n", curve.x[a], curve.x[b], a, b);
+                auto dy = N == 3 ? exchange_3(step, a, b) : exchange_2(step, a, b);
+                // printf("+++ %Lf %Lf\n", curve.x[a], curve.x[b]);
+                vol += step * price_oracle[a];
+                _dx += dy;
+                last = N == 3 ? price_3(a, b) : price_2(a, b);
+                ctr += 1;
+            }
+        }
+
+        auto p_after = N == 3 ? price_3(a, b) : price_2(a, b);
+        // auto _fee = N == 3 ? fee_3() : fee_2();
+        // printf("!!! %d %d\n", a, b);
+        // printf("!!!1 %Lf %Lf\n", p_after, last);
+
+        if (p_before != p_after) {
+            auto v = _dx / (curve.x[b] + curve.x[a] / p_after) * N / 2;
+            _slippage = (_dx * (p_before + p_after)) / (2.L * (mabs(p_before - p_after)) * curve.x[b]);
+            volume += v;
+        }
+        if (_slippage > 1e-10) {
+            slippage_count += last_time;
+            antislippage += last_time * _slippage;
+            slippage += last_time / _slippage;
+            imbalance += mabs(logl((_high + _low) / (2.L * curve.p[1]))) * curve.A * last_time;
+        }
+        _high = last;
+
+        if (ctr > 0) {
+            if (_low == 0) _low = last;
+            apply_tweak_trade((_high + _low) / 2.L);
+            ctr = 0;
+        }
+
+        _dx = 0;
+        p_before = p_after;
+
+        if ((min_price != 0) && (min_price < p_before)) {
+            auto step = N == 3 ? step_for_price_3(min_price, 0, d.pair1, vol, ext_vol) : step_for_price_2(min_price, 0, d.pair1, vol, ext_vol);
+            if (step > 0) {
+                // printf("=== %Lf %Lf %d %d\n", curve.x[a], curve.x[b], a, b);
+                auto dy = N == 3 ? exchange_3(step, b, a) : exchange_2(step, b, a);
+                // printf("=== %Lf %Lf %d %d\n", curve.x[a], curve.x[b], a, b);
+                // printf("!===! %Lf %Lf\n", step, dy);
+                vol += dy * price_oracle[a];
+                _dx += step;
+                last = N == 3 ? price_3(a, b) : price_2(a, b);
+                ctr += 1;
+            }
+        }
+
+        p_after = N == 3 ? price_3(a, b) : price_2(a, b);
+        // _fee = N == 3 ? fee_3() : fee_2();
+        // printf("!!!2 %Lf %Lf\n", p_after, last);
+
+        if (p_before != p_after) {
+            auto v = _dx / (curve.x[b] + curve.x[a] / p_after) * N / 2;
+            _slippage = (_dx * (p_before + p_after)) / (2.L * (mabs(p_before - p_after)) * curve.x[b]);
+            volume += v;
+        }
+        if (_slippage > 1e-10) {
+            slippage_count += last_time;
+            antislippage += last_time * _slippage;
+            slippage += last_time / _slippage;
+            imbalance += logl(mabs((_high + _low) / (2.L * curve.p[1]))) * curve.A * last_time;
+        }
+
+        _low = last;
+        if (ctr > 0) {
+            if (_high == 0) _high = last;
+            apply_tweak_trade((_high + _low) / 2.L);
+            ctr = 0;
+        }
+        lasts[d.pair1] = last;
+
+        auto local_boost_rate = this->boost_rate;
+        if (mid_fee < out_fee)
+            local_boost_rate *= 1 + (fee_2() - mid_fee) / (out_fee - mid_fee) * (this->boost_mul - 1);
+
+        // Boost with special donations to the pool
+        if (this->boost_rate > 0) {
+            auto _boost = (1.L + last_time * local_boost_rate);
+            curve.x[0] = curve.x[0] * _boost;
+            curve.x[1] = curve.x[1] * _boost;
+            if (N == 3) {
+                curve.x[2] = curve.x[2] * _boost;
+            }
+            xcp_profit_real *= _boost;
+            xcp *= _boost;
+            this->boost_integral *= _boost;
+        }
+
+        long double norm = 0;
+        // only tweak_price every N seconds or on trade
+        if (d.t - last_time_tweak_price >= 3600 || trade_happened) {
+            previous_price_scale = curve.p[1];
+            money cur_get_p = curve.p_2(0, 1);
+            if (N == 2) norm = tweak_price_2(d.t, a, b, last_prices);
+            else        norm = tweak_price_3(d.t, a, b, (_high + _low) / 2.L);
+            // spot_prev = price_2(0, 1) * ps_pre / curve.p[1];
+            last_prices = cur_get_p * previous_price_scale;
+            last_time_tweak_price = d.t;
+            // XXX: Suppress unused
+            (void)norm;
+        }
+
+        money _xp[2];
+        curve.xp_2(_xp);
+        money bal_mul = (_xp[0] + _xp[1]);
+        money ideal_vp = xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction);
+        bal_mul = 4 * _xp[0] * _xp[1] / (bal_mul * bal_mul);
+        // xcp_profit_real_adj *= (ideal_vp / xcp_profit_real_prev - 1.L) * bal_mul * bal_mul + 1.L;
+        xcp_profit_real_adj *= (ideal_vp / xcp_profit_real_prev);
+        xcp_profit_real_prev = ideal_vp;
+
+        total_vol += vol;
+        imbalance_integral += (1.L - bal_mul) * last_time;  // last_time is dt here
+        last_time = d.t;
+        long double ARU_x = ideal_vp;
+        long double ARU_y = (86400.L * 365.L / (d.t - start_t + 1.L));
+        APY = powl(ARU_x, ARU_y) - 1.L;
+        APY_boost = powl(ideal_vp / this->boost_integral, ARU_y) - 1.L;
+        APY_boost_2 = powl(xcp_profit_real_adj / this->boost_integral, ARU_y) - 1.L;
+        // Moving 1-month window geometric-mean APR
+        xcp_history.push_back({d.t, xcp_profit_real_adj / this->boost_integral});
+        // Advance front to the closest entry at or before (d.t - TW_APR_SECONDS)
+        while (xcp_history.size() > 1 &&
+               xcp_history[1].first <= d.t - TW_APR_SECONDS) {
+            xcp_history.pop_front();
+        }
+        if (d.t - xcp_history.front().first >= TW_APR_SECONDS) {
+            money tw_growth = (xcp_profit_real_adj / this->boost_integral) / xcp_history.front().second;
+            tw_apr = max((tw_growth - 1.L) * TW_APR_PER_YEAR, 1e-20L);
+            sum_log_tw_apr += logl(tw_apr);
+            n_monthly_samples++;
+            APR_geo_mean = expl(sum_log_tw_apr / n_monthly_samples);
+        }
+        if (i % 1024 == 0 && log) {
+            try {
+                long double last01, last02 = 0.0;
+                auto it01 = lasts.find({0, 1});
+                if (it01 == lasts.end()) {
+                    last01 = price_oracle[1] / price_oracle[0];
+                } else {
+                    last01 = it01->second;
+                }
+                if (N == 3) {
+                    auto it02 = lasts.find({0, 2});
+                    if (it02 == lasts.end()) {
+                        last02 = price_oracle[2] / price_oracle[0];
+                    } else {
+                        last02 = it02->second;
+                    }
+                }
+                if (N == 3) {
+                    printf("t=%llu %.1Lf%%\ttrades: %d\t"
+                           "AMM: %.3Lf, %0.3Lf\tTarget: %.3Lf, %.3Lf\t"
+                           "Vol: %.4Lf\tPR:%.2Lf\txCP-growth: {%.10Lf}\t"
+                           "APY:%.1Lf%%\ttw_apr:%.1Lf%%\tfee:%.3Lf%% %c\n",
+                           d.t,
+                           100.L * i / total_elements, ctr, last01, last02,
+                           curve.p[1],
+                           curve.p[2],
+                           total_vol,
+                           (xcp_profit_real - 1.) / (xcp_profit - 1.L),
+                           xcp_profit_real,
+                           APY * 100.L,
+                           tw_apr * 100.L,
+                           (curve.p.size() == 3 ? fee_3() : fee_2()) * 100.L,
+                           is_light ? '*' : '.');
+                } else if (N == 2) {
+                    printf("t=%llu %.1Lf%%\ttrades: %d\tAMM: %.5Lf\tTarget: %.5Lf\tVol: %.4Lf\tPR:%.2Lf\txCP-growth: {%.10Lf}\tAPY:%.1Lf%%\ttw_apr:%.1Lf%%\tfee:%.3Lf%% %c\n",
+                           d.t,
+                           100.L * i / total_elements,
+                           ctr,
+                           last01,
+                           curve.p[1],
+                           total_vol,
+                           (xcp_profit_real - 1.) / (xcp_profit - 1.L),
+                           xcp_profit_real,
+                           APY * 100.L,
+                           tw_apr * 100.L,
+                           fee_2() * 100.L,
+                           is_light ? '*' : '.');
+
+                }
+            } catch (std::exception const &e) {
+                printf("caught '%s'\n", e.what());
+            }
+        }
+
+        if (log) {
+            fprintf(out_file, "{\"t\": %llu, \"token0\": %.6Le, \"token1\": %.6Le, \"price_oracle\": %.6Le, \"price_scale\": %.6Le, \"profit\": %.6Le, \"xcp\": %.6Le, \"open\": %.6Le, \"high\": %.6Le, \"low\": %.6Le, \"close\": %.6Le, \"boost_rate\": %.6Le}",
+                    d.t,
+                    curve.x[0],
+                    curve.x[1],
+                    price_oracle[b] / price_oracle[a],
+                    curve.p[1],
+                    xcp_profit_real - 1.0,
+                    xcp_profit,
+                    d.open, d.high, d.low, d.close,
+                    local_boost_rate);
+            if (i < total_elements - 1) {
+                fprintf(out_file, ",\n");
+            }
+        }
+
+        if (slippage > 1e20 and slippage_count > 0) {
+            printf("*** Slippage is too high %.5Lf\n", slippage);
+        }
+    }
+    extdata->imbalance_integral = imbalance_integral / (this->t - start_t + 1.L);
+    extdata->slippage = slippage / slippage_count / 2.L;
+    extdata->imbalance = imbalance / slippage_count / 2.L;
+    extdata->liq_density = 2.L * antislippage / slippage_count;
+    extdata->APY = APY;
+    extdata->volume = volume;
+    extdata->APY_boost = APY_boost;
+    extdata->APY_boost_2 = APY_boost_2;
+    extdata->APR_geo_mean = APR_geo_mean;
+
+    if (log) {
+        fprintf(out_file, "]");
+    }
+}
+
+money Trader::tweak_price_2(u64 t, int /*a*/, int /*b*/, money spot_prev) {
+    const int N = 2;
+
+    // --- Feed the EMA with the pool's own spot (pre-fee marginal price),
+    //     coin0 per coin1, computed at the current state.
+    money amm_p01 = spot_prev;             // dx/dy (coin0 per coin1)
+    // money amm_p01 = price_2(0, 1);
+    // Optional: cap like the real pool (avoid extreme oracle jumps)
+    money capped_p01 = std::min(amm_p01, 2.L * curve.p[1]);
+
+    std::vector<money> spot = {1.L, capped_p01};
+    ma_recorder(t, spot);
+
+
+    // # price_oracle looks like [1, p1, p2, ...] normalized to 1e18
+    money S = 0;
+    for (size_t i = 0; i < N; i++) {
+        auto t = price_oracle[i] / curve.p[i] - 1.L;
+        S += t*t;
+    }
+    auto norm = S;
+    norm = sqrt(norm); // .root_to();
+    auto _adjustment_step = min(adjustment_step, norm / 5);
+    if (norm <= _adjustment_step) {
+        // Already close to the target price
+        is_light = true;
+        light_tx += 1;
+        return norm;
+    }
+    if (not not_adjusted and (xcp_profit_real > xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction) + allowed_extra_profit)) {
+        not_adjusted = true;
+    }
+    if (not not_adjusted) {
+        light_tx += 1;
+        is_light = true;
+        return norm;
+    }
+    heavy_tx += 1;
+    is_light = false;
+
+    money p_new[MAX_ARRAY];
+    p_new[0] = 1.L;
+    for (size_t i = 1; i < price_oracle.size(); i++) {
+        auto p_target = curve.p[i];
+        auto p_real = price_oracle[i];
+        p_new[i] = p_target + _adjustment_step * (p_real - p_target) / norm;
+    }
+    money old_p[MAX_ARRAY];
+    copy_money_2(old_p, &curve.p[0]);
+
+    auto old_profit = xcp_profit_real;
+    auto old_xcp = xcp;
+
+    copy_money_2(&curve.p[0],p_new);
+    update_xcp_2(true);
+
+    if (xcp_profit_real <= xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction)) {
+        //  If real profit is less than equilibrium - revert params back
+        copy_money_2(&curve.p[0], old_p);
+        xcp_profit_real = old_profit;
+        xcp = old_xcp;
+        not_adjusted = false;
+        // auto val = ((xcp_profit_real - 1.L - (xcp_profit - 1.L) / 2.L));
+        // printf("%.10Lf\n", val);
+    }
+    return norm;
+}
+
+money Trader::tweak_price_3(u64 t, int a, int b, money p) {
+    ma_recorder(t, last_price);
+    const size_t N = 3;
+    if (b > 0) {
+        last_price[b] = p * last_price[a];
+    } else {
+        last_price[a] = last_price[0] / p;
+    }
+
+    // # price_oracle looks like [1, p1, p2, ...] normalized to 1e18
+    money S = 0;
+    for (size_t i = 0; i < N; i++) {
+        auto t = price_oracle[i] / curve.p[i] - 1.L;
+        S += t*t;
+    }
+    auto norm = S;
+    norm = sqrt(norm); // .root_to();
+    auto _adjustment_step = max(adjustment_step, norm / 5);
+    if (norm <= _adjustment_step) {
+        // Already close to the target price
+        is_light = true;
+        light_tx += 1;
+        return norm;
+    }
+    if (not not_adjusted and (xcp_profit_real > xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction) + allowed_extra_profit * xcp_profit_real)) {
+        not_adjusted = true;
+    }
+    if (not not_adjusted) {
+        light_tx += 1;
+        is_light = true;
+        return norm;
+    }
+    heavy_tx += 1;
+    is_light = false;
+
+    money p_new[MAX_ARRAY];
+    p_new[0] = 1.L;
+    for (size_t i = 1; i < price_oracle.size(); i++) {
+        auto p_target = curve.p[i];
+        auto p_real = price_oracle[i];
+        p_new[i] = p_target + _adjustment_step * (p_real - p_target) / norm;
+    }
+    money old_p[MAX_ARRAY];
+    copy_money_3(old_p, &curve.p[0]);
+
+    auto old_profit = xcp_profit_real;
+    auto old_xcp = xcp;
+
+    copy_money_3(&curve.p[0],p_new);
+    if (N == 3) update_xcp_3(true);
+    else        update_xcp_2(true);
+
+    if (xcp_profit_real <= xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction)) {
+        //  If real profit is less than equilibrium - revert params back
+        copy_money_3(&curve.p[0], old_p);
+        xcp_profit_real = old_profit;
+        xcp = old_xcp;
+        not_adjusted = false;
+        // auto val = ((xcp_profit_real - 1.L - (xcp_profit - 1.L) / 2.L));
+        // printf("%.10Lf\n", val);
+    }
+    return norm;
+}
+
 
 static bool json_load(string const &name, json &j) {
     try {
@@ -1675,11 +1683,11 @@ public:
     {}
     simulation_data simdata;
     json *result;
-    
+
     virtual void work();
     virtual void fini();
 
-    virtual ~SimulationTask() = default;    
+    virtual ~SimulationTask() = default;
 private:
 };
 
