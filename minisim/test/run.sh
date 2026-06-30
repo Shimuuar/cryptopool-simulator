@@ -10,13 +10,13 @@ touch detailed-output.json
 RES=0
 if [ "$(sha1sum < test/test_stdout.txt)" != "$(sha1sum < test/stdout.txt)" ]; then
     echo "==== STDOUT MISMATCH ===="
-    diff -u test/test_stdout.txt test/stdout.txt
+    diff -u test/stdout.txt test/test_stdout.txt
     RES=1
 fi
 
 if [ "$(sha1sum < test/test_out.json)" != "$(sha1sum < test/out.json)" ]; then
     echo "==== OUTPUT JSON MISMATCH ===="
-    diff -u <(jq < test/test_out.json) <(jq < test/out.json)
+    diff -u <(jq < test/out.json) <(jq < test/test_out.json)
     RES=1
 fi
 
