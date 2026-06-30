@@ -754,7 +754,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     money imbalance = 0;
     money antislippage = 0;
     money slippage_count = 0;
-    money _slippage = 0; // initialize to avoid using garbage when price doesn't move
     money last_prices = price_2(0, 1);
     money previous_price_scale = curve.p[1];
     money imbalance_integral = 0;
@@ -779,8 +778,10 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     money last = price_oracle[b] / price_oracle[a];
     // Accumulator: sum of dt where relative deviation exceeds threshold
     for (size_t i = 0; i < total_elements; i++) {
+        money _slippage = 0;
+
         simdata->current = i;
-        // if (i > 10) abort();
+
         trade_data d = *mapped_data++;
         if (i == 0) {
             start_t = d.t;
@@ -791,22 +792,20 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             last_time = d.t - last_time;
         }
 
-        money vol{0.L};
-        auto ext_vol = money(d.volume * price_oracle[b]); //  <- now all is in USD
-        int ctr{0};
+        money vol     = 0.0L;
+        money ext_vol = money(d.volume * price_oracle[b]); //  <- now all is in USD
+        int ctr    = 0;
         auto _high = last;
-        auto _low = last;
-        _slippage = 0; // reset per-iteration before any accumulation
+        auto _low  = last;
 
-        auto max_price = d.high * (1 - ext_fee);
-        auto min_price = d.low * (1 + ext_fee);
+        const money max_price = d.high * (1 - ext_fee);
+        const money min_price = d.low  * (1 + ext_fee);
         money _dx = 0;
         auto p_before = price_2(a, b);
         bool trade_happened = false;
         auto apply_tweak_trade = [&](money spot_prev) {
             money ps_before = curve.p[1];
             money cur_get_p = curve.p_2();
-            (void)spot_prev;
             tweak_price_2(d.t, a, b, last_prices);
             last_prices = cur_get_p * ps_before;
             last_time_tweak_price = d.t;
