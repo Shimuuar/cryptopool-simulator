@@ -1735,6 +1735,40 @@ void *simulation_thread(void *args) {
     return nullptr;
 }
 
+class SimulationTask : public Workload {
+public:
+    SimulationTask(simulation_data _simdata, json *_result) :
+        simdata(_simdata),
+        result(_result)
+    {}
+    simulation_data simdata;
+    json *result;
+    
+    virtual void work();
+    virtual void fini();
+
+    virtual ~SimulationTask() = default;    
+private:
+};
+
+void SimulationTask::work() {
+    int tid = 0;
+    printf("[%d]: pick up configuration %d\n", tid, simdata.num);
+    simulation(&simdata);
+}
+
+void SimulationTask::fini() {
+    (*result)["configuration"][simdata.num]["Result"]["APY"]                = simdata.result.APY;
+    (*result)["configuration"][simdata.num]["Result"]["liq_density"]        = simdata.result.liq_density;
+    (*result)["configuration"][simdata.num]["Result"]["slippage"]           = simdata.result.slippage;
+    (*result)["configuration"][simdata.num]["Result"]["imbalance"]          = simdata.result.imbalance;
+    (*result)["configuration"][simdata.num]["Result"]["volume"]             = simdata.result.volume;
+    (*result)["configuration"][simdata.num]["Result"]["APY_boost"]          = simdata.result.APY_boost;
+    (*result)["configuration"][simdata.num]["Result"]["APY_boost_2"]        = simdata.result.APY_boost_2;
+    (*result)["configuration"][simdata.num]["Result"]["APR_geo_mean"]       = simdata.result.APR_geo_mean;
+    (*result)["configuration"][simdata.num]["Result"]["imbalance_integral"] = simdata.result.imbalance_integral;
+}
+
 int main(int argc, char **argv) {
     if (argc == 1) {
         printf("Usage: %s [trim] [threads=#] [in-json-file] [out-json-file]\n", argv[0]);
@@ -1772,13 +1806,8 @@ int main(int argc, char **argv) {
     }
     double time_start = get_total_time();
     double wall_time_start = get_wall_time();
-    std::queue<simulation_data> sim_queue;
-    vector<pthread_t> threads(THREADS);
-    vector<work_queue> thr_data(THREADS);
-    pthread_mutex_t queue_mutex;
-    pthread_mutex_init(&queue_mutex, nullptr);
-    pthread_mutex_t result_mutex;
-    pthread_mutex_init(&result_mutex, nullptr);
+
+    WorkQueue work_queue(THREADS);
     json result = jin;
     for (int i = 0; i < configurations; i++) {
         simulation_data cd;
@@ -1788,22 +1817,11 @@ int main(int argc, char **argv) {
         cd.jconf = &jin["configuration"][i];
         cd.current = 0;
         cd.total = 0;
-        sim_queue.push(cd);
+        work_queue.enqueue(new SimulationTask(cd, &result));
     }
-    for (int i = 0; i < THREADS; i++) {
-        thr_data[i].wq = &sim_queue;
-        thr_data[i].lock = &queue_mutex;
-        thr_data[i].result_lock = &result_mutex;
-        thr_data[i].num = i;
-        thr_data[i].result = &result;
-        if (pthread_create(&threads[i], nullptr, simulation_thread, &thr_data[i]) != 0) {
-            printf("Can't create thread %d!\n", i);
-        }
-    }
+    work_queue.start();
+    work_queue.join();
 
-    for (int i = 0; i < THREADS; i++) {
-        pthread_join(threads[i], nullptr);
-    }
     json_save(out_json_name, result);
     double time_end = get_total_time();
     double wall_time_end = get_wall_time();

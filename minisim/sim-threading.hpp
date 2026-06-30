@@ -31,6 +31,7 @@ public:
 class WorkQueue {
 public:
     explicit WorkQueue(int n_threads);
+    ~WorkQueue();
 
     // Add task for execution. Queue takes ownership.
     void enqueue(Workload *w);

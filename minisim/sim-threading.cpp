@@ -111,11 +111,13 @@ struct WorkQueue::Impl {
     std::queue<std::shared_ptr<Workload>> queue;
 
     Impl(int n_threads);
+    ~Impl() = default;
 };
 
 WorkQueue::Impl::Impl(int n_threads) :
     status(PREPARING),
-    threads(n_threads)
+    threads(n_threads),
+    params(n_threads)
 {
     pthread_mutex_init(&lock_queue,        nullptr);
     pthread_mutex_init(&lock_result, nullptr);
@@ -124,6 +126,9 @@ WorkQueue::Impl::Impl(int n_threads) :
 WorkQueue::WorkQueue(int n_threads) :
     impl(new WorkQueue::Impl(n_threads))
 {}
+
+WorkQueue::~WorkQueue() {
+}
 
 static void* worker(void* dat) {
     Payload* param = (Payload*)(dat);
@@ -150,7 +155,7 @@ void WorkQueue::start() {
     assert(impl->status == WorkQueue::PREPARING);
     impl->status = WorkQueue::RUNNING;
     for(size_t i = 0; i < impl->threads.size(); i++) {
-        impl->params[i].queue = &impl->queue;
+        impl->params[i].queue       = &impl->queue;
         impl->params[i].lock_queue  = &impl->lock_queue;
         impl->params[i].lock_result = &impl->lock_result;
         if( 0 != pthread_create(&impl->threads[i], nullptr, worker, &impl->params[i]) ) {
@@ -166,4 +171,8 @@ void WorkQueue::join() {
     for(const auto& tid : impl->threads) {
         pthread_join(tid, nullptr);
     }
+}
+
+void WorkQueue::enqueue(Workload* w) {
+    impl->queue.push(std::shared_ptr<Workload>(w));
 }
