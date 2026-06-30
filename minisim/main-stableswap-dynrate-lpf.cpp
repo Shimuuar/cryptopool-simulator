@@ -1294,15 +1294,15 @@ struct Trader {
     }
 
 
-    void simulate(mapped_file const *in, simulation_data *simdata, extra_data *extdata) {
+    void simulate(simulation_data *simdata, extra_data *extdata) {
         map<pair<int, int>, money> lasts;
         size_t N = price_oracle.size();
         u64 start_t = 0;
         long double last_time = 0;
         long double last_time_tweak_price = 0;
-        size_t total_elements = in->size / sizeof(trade_data);
+        size_t total_elements = simdata->test_data->size / sizeof(trade_data);
         simdata->total = total_elements;
-        auto mapped_data = (trade_data const *) in->base;
+        auto mapped_data = (trade_data const *) simdata->test_data->base;
         money xcp_profit_real_prev = 1.L;
         money xcp_profit_real_adj = 1.L;
         money slippage = 0;
@@ -1674,13 +1674,12 @@ static bool json_save(string const &name, json const &j) {
 
 
 bool simulation(simulation_data *data) {
-//        int num, json const *jconf, vector<money> const *price_vector, mapped_file const *test_data) {
     Trader trader(*(data->jconf), *(data->price_vector));
     auto start_simulation = get_thread_time();
     printf("Configuration %d: begin simulation\n", data->num);
     unlink(data->test_data->name.c_str()); // Temp file can be deleted in *nix even being open
     extra_data extdata;
-    trader.simulate(data->test_data, data, &extdata);
+    trader.simulate(data, &extdata);
     data->result = extdata;
     //money liq_density = jout["liq_density"];
     //money APY = jout["APY"];
