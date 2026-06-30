@@ -10,8 +10,6 @@
 #include <vector>
 #include <algorithm>
 #include <utility>
-#include <sys/fcntl.h>
-#include <sys/mman.h>
 #include <stdexcept>
 #include <cmath>
 #include <fstream>
@@ -19,9 +17,6 @@
 #include "json.hpp"
 #include <deque>
 
-#ifndef MAP_NOCACHE
-#define MAP_NOCACHE 0
-#endif
 using nlohmann::json;
 using std::vector, std::string, std::pair, std::sort, std::map, std::min, std::max;
 
@@ -58,37 +53,29 @@ static inline money mabs(money val) noexcept {
     return val >= 0 ? val : -val;
 }
 
-
-struct mapped_file {
-    int fd;
-    unsigned char *base = nullptr;
-    size_t size = 0;
-    string name;
-    explicit mapped_file() {}
-    bool map(string const &name) {
-        fd = open(name.c_str(), O_RDONLY);
-        if (fd < 0) return false;
-        lseek(fd, 0, SEEK_END);
-        size = lseek(fd, 0, SEEK_CUR);
-        base = (unsigned char *)::mmap(nullptr, size, PROT_READ, MAP_NOCACHE|MAP_FILE|MAP_SHARED, fd, 0);
-        printf("mapped_file::open: base=%p\n", base);
-        if (base == MAP_FAILED) {
-            perror(name.c_str());
-            base = nullptr;
-            return false;
-        }
-        this->name = name;
-        return true;
-    }
-    ~mapped_file() {
-        if (base != nullptr) {
-            ::munmap(base, size);
-        }
-        if (fd >= 0) {
-            close(fd);
-        }
-    }
+class TradeDataArray {
+public:
+    virtual size_t size() const = 0;
+    virtual const trade_data* array() const = 0;
+    virtual ~TradeDataArray() = default;
 };
+
+class TradeDataVector: public TradeDataArray {
+public:
+    TradeDataVector(const std::vector<trade_data>& vec) :
+        m_vec(vec)
+    {}
+    TradeDataVector(std::vector<trade_data>&& vec) :
+        m_vec(vec)
+    {}
+    virtual ~TradeDataVector() = default;
+
+    virtual size_t            size()  const { return m_vec.size(); }
+    virtual const trade_data* array() const { return &m_vec[0]; }
+private:
+    std::vector<trade_data> m_vec;
+};
+
 
 
 // py: returns list of dicts ['t'->u64, 'open'->float, 'high'->float, 'low'->float, 'close'->float, 'volume'->float]
@@ -171,7 +158,7 @@ auto get_price_vector(int n, vector<trade_data> const &data) {
     return p;
 }
 
-bool get_all(json const &jin, int last_elems, vector<money> & price_vector, mapped_file &mf) {
+TradeDataArray* get_all(json const &jin, int last_elems, vector<money> & price_vector) {
     // 0 - usdt
     // 1 - btc
     // 2 - eth
@@ -283,20 +270,8 @@ bool get_all(json const &jin, int last_elems, vector<money> & price_vector, mapp
         ret.erase(ret.begin(), ret.begin() + ret.size() - last_elems);
     }
     price_vector = get_price_vector(N, ret);
-    string tmp_name = "_tmp." + std::to_string(getpid());
-    FILE *tmp = fopen(tmp_name.c_str(), "w+");
-    if (tmp == nullptr) {
-        printf("Temp file '%s' is not available\n", tmp_name.c_str());
-        return false;
-    }
-    printf("Using temp file '%s' as interprocedural connect\n", tmp_name.c_str());
-    fwrite(&ret[0], sizeof(trade_data), ret.size(), tmp);
-
-    // fix - must be done not to skip over tail buffer
-    fflush(tmp);
-    fclose(tmp);
-    mf.map(tmp_name);
-    return true;
+    
+    return new TradeDataVector(std::move(ret));
 }
 
 money geometric_mean_2(money const *x) {
@@ -681,7 +656,7 @@ struct simulation_data {
     int num = 0;
     json const *jconf = nullptr;
     vector<money> const *price_vector = nullptr;
-    mapped_file const *test_data = nullptr;
+    const TradeDataArray *test_data = nullptr;
     extra_data result;
     size_t total = 0;
     size_t current = 0;
@@ -1300,9 +1275,9 @@ struct Trader {
         u64 start_t = 0;
         long double last_time = 0;
         long double last_time_tweak_price = 0;
-        size_t total_elements = simdata->test_data->size / sizeof(trade_data);
+        size_t total_elements = simdata->test_data->size();
         simdata->total = total_elements;
-        auto mapped_data = (trade_data const *) simdata->test_data->base;
+        const trade_data* mapped_data = simdata->test_data->array();
         money xcp_profit_real_prev = 1.L;
         money xcp_profit_real_adj = 1.L;
         money slippage = 0;
@@ -1677,7 +1652,6 @@ bool simulation(simulation_data *data) {
     Trader trader(*(data->jconf), *(data->price_vector));
     auto start_simulation = get_thread_time();
     printf("Configuration %d: begin simulation\n", data->num);
-    unlink(data->test_data->name.c_str()); // Temp file can be deleted in *nix even being open
     extra_data extdata;
     trader.simulate(data, &extdata);
     data->result = extdata;
@@ -1759,10 +1733,8 @@ int main(int argc, char **argv) {
 
     printf("Total %d configurations will be processed in %d threads\n", configurations, THREADS);
     vector<money> price_vector;
-    mapped_file test_data;
-    if (!get_all(jin, LAST_ELEMS, price_vector, test_data)) {
-        return 0;
-    }
+    std::unique_ptr<TradeDataArray> test_data(
+        get_all(jin, LAST_ELEMS, price_vector));
     double time_start = get_total_time();
     double wall_time_start = get_wall_time();
 
@@ -1771,7 +1743,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < configurations; i++) {
         simulation_data cd;
         cd.num = i;
-        cd.test_data = &test_data;
+        cd.test_data = &*test_data;
         cd.price_vector = &price_vector;
         cd.jconf = &jin["configuration"][i];
         cd.current = 0;
