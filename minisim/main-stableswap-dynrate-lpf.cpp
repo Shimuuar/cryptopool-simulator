@@ -1,4 +1,5 @@
 #include "sim-threading.hpp"
+#include "sim-util.hpp"
 
 #include <cassert>
 #include <cstdio>
@@ -96,22 +97,19 @@ vector<trade_data> get_data(std::string const &fname) {
     auto start_time = get_thread_time();
     auto name_to_open = "download/" + fname + ".json";
     printf("parsing %s\n", name_to_open.c_str());
-    mapped_file mf;
-    if (!mf.map(name_to_open)) {
-        printf("failed to open '%s'\n", name_to_open.c_str());
-        abort();
-    }
+    MMappedFile mf( name_to_open );
     vector<trade_data> ret;
-    auto p = mf.base;
+    // FIXME: We may well go past data
+    auto p = mf.buffer();
     if (*p == '[') p++; // skip initial '[';
-    auto scan_double = [] (unsigned char *p, long double *d) {
+    auto scan_double = [] (const unsigned char *p, long double *d) {
         if (*p == '"') p++;
         *d = atof((char *)p);
         while (*p != '"' && *p!= ' ' && *p != ',' && *p != ']') p++;
         while (*p == ',' || *p == ' ' || *p == '"') p++;
         return p;
     };
-    auto scan_u64 = [] (unsigned char *p, u64 *d) {
+    auto scan_u64 = [] (const unsigned char *p, u64 *d) {
         u64 ret = 0;
         while (*p >= '0' && *p <= '9') {
             ret = ret * 10 + *p - '0';

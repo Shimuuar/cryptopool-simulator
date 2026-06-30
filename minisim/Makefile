@@ -6,8 +6,9 @@ CXXFLAGS = -Wall -g -O2 -std=c++17 -I..
 LDFLAGS  =
 HEADERS  = $(wildcard *.hpp)
 OBJ      = \
-	main-stableswap-dynrate-lpf.cpp.o \
-	sim-threading.cpp.o
+	main-stableswap-dynrate-lpf.cpp.o	\
+	sim-threading.cpp.o			\
+	sim-util.cpp.o
 
 
 all: main
