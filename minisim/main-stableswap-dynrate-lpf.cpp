@@ -16,9 +16,7 @@
 #include <fstream>
 #include <iomanip>
 #include "json.hpp"
-#include <queue>
 #include <deque>
-#include <pthread.h>
 
 #ifndef MAP_NOCACHE
 #define MAP_NOCACHE 0
@@ -1699,46 +1697,6 @@ bool simulation(simulation_data *data) {
     auto end = get_thread_time();
     print_clock("Total simulation time", start_simulation, end);
     return true;
-}
-
-struct work_queue {
-    std::queue<simulation_data> *wq;
-    pthread_mutex_t *lock;
-    pthread_mutex_t *result_lock;
-    json *result;
-    int num;
-};
-
-void *simulation_thread(void *args) {
-    auto data = (work_queue *)args;
-    printf("[%d]: simulation thread started\n", data->num);
-    for (;;) {
-        pthread_mutex_lock(data->lock);
-        if (data->wq->empty()) {
-            pthread_mutex_unlock(data->lock);
-            break;
-        }
-        simulation_data simdata = data->wq->front();
-        data->wq->pop();
-        pthread_mutex_unlock(data->lock);
-        printf("[%d]: pick up configuration %d\n", data->num, simdata.num);
-        simulation(&simdata);
-        pthread_mutex_lock(data->result_lock);
-        (*(data->result))["configuration"][simdata.num]["Result"]["APY"] = simdata.result.APY;
-        (*(data->result))["configuration"][simdata.num]["Result"]["liq_density"] = simdata.result.liq_density;
-        (*(data->result))["configuration"][simdata.num]["Result"]["slippage"] = simdata.result.slippage;
-        (*(data->result))["configuration"][simdata.num]["Result"]["imbalance"] = simdata.result.imbalance;
-        (*(data->result))["configuration"][simdata.num]["Result"]["volume"] = simdata.result.volume;
-        (*(data->result))["configuration"][simdata.num]["Result"]["APY_boost"] = simdata.result.APY_boost;
-        (*(data->result))["configuration"][simdata.num]["Result"]["APY_boost_2"] = simdata.result.APY_boost_2;
-        (*(data->result))["configuration"][simdata.num]["Result"]["APR_geo_mean"] = simdata.result.APR_geo_mean;
-        (*(data->result))["configuration"][simdata.num]["Result"]["imbalance_integral"] = simdata.result.imbalance_integral;
-
-        pthread_mutex_unlock(data->result_lock);
-
-    }
-    printf("[%d]: simulation thread ended\n", data->num);
-    return nullptr;
 }
 
 class SimulationTask : public Workload {
