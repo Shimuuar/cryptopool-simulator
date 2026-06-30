@@ -1722,15 +1722,16 @@ void SimulationTask::work() {
 }
 
 void SimulationTask::fini() {
-    (*result)["configuration"][simdata.num]["Result"]["APY"]                = simdata.result.APY;
-    (*result)["configuration"][simdata.num]["Result"]["liq_density"]        = simdata.result.liq_density;
-    (*result)["configuration"][simdata.num]["Result"]["slippage"]           = simdata.result.slippage;
-    (*result)["configuration"][simdata.num]["Result"]["imbalance"]          = simdata.result.imbalance;
-    (*result)["configuration"][simdata.num]["Result"]["volume"]             = simdata.result.volume;
-    (*result)["configuration"][simdata.num]["Result"]["APY_boost"]          = simdata.result.APY_boost;
-    (*result)["configuration"][simdata.num]["Result"]["APY_boost_2"]        = simdata.result.APY_boost_2;
-    (*result)["configuration"][simdata.num]["Result"]["APR_geo_mean"]       = simdata.result.APR_geo_mean;
-    (*result)["configuration"][simdata.num]["Result"]["imbalance_integral"] = simdata.result.imbalance_integral;
+    json& dst = (*result)["configuration"][simdata.num]["Result"];
+    dst["APY"]                = simdata.result.APY;
+    dst["liq_density"]        = simdata.result.liq_density;
+    dst["slippage"]           = simdata.result.slippage;
+    dst["imbalance"]          = simdata.result.imbalance;
+    dst["volume"]             = simdata.result.volume;
+    dst["APY_boost"]          = simdata.result.APY_boost;
+    dst["APY_boost_2"]        = simdata.result.APY_boost_2;
+    dst["APR_geo_mean"]       = simdata.result.APR_geo_mean;
+    dst["imbalance_integral"] = simdata.result.imbalance_integral;
 }
 
 int main(int argc, char **argv) {
