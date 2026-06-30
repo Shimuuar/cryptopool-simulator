@@ -2,7 +2,10 @@
 
 #include <sys/resource.h>
 #include <sys/time.h>
-
+#include <stdlib.h>
+#include <stdio.h>
+#include <queue>
+#include <cassert>
 
 #ifdef __MACH__
 #include <mach/mach_init.h>
@@ -64,4 +67,103 @@ double get_wall_time() {
     ret += tv.tv_sec;
     ret += tv.tv_usec / 1000000.;
     return ret;
+}
+
+
+//================================================================
+//
+
+namespace {
+    struct Payload {
+        std::queue<std::shared_ptr<Workload>> *queue;
+        pthread_mutex_t *lock_queue;
+        pthread_mutex_t *lock_result;
+    };
+
+    // RAII based wrapper for pthread mutex. It's mstly needed to
+    // provide excepton safety
+    class TakenMutex {
+    public:
+        explicit TakenMutex(pthread_mutex_t* p):
+            mutex(p)
+        {
+            pthread_mutex_lock(mutex);
+        }
+        ~TakenMutex() {
+            pthread_mutex_unlock(mutex);
+        }
+    private:
+        pthread_mutex_t *mutex;
+    private:
+        TakenMutex(TakenMutex& ) = delete;
+        TakenMutex& operator=( const TakenMutex& ) = delete;
+    };
+    
+}
+
+
+struct WorkQueue::Impl {
+    pthread_mutex_t        lock_queue;
+    pthread_mutex_t        lock_result;
+    Status                 status;
+    std::vector<pthread_t> threads;
+    std::vector<Payload>   params;
+    std::queue<std::shared_ptr<Workload>> queue;
+
+    Impl(int n_threads);
+};
+
+WorkQueue::Impl::Impl(int n_threads) :
+    status(PREPARING),
+    threads(n_threads)
+{
+    pthread_mutex_init(&lock_queue,        nullptr);
+    pthread_mutex_init(&lock_result, nullptr);
+}
+
+WorkQueue::WorkQueue(int n_threads) :
+    impl(new WorkQueue::Impl(n_threads))
+{}
+
+static void* worker(void* dat) {
+    Payload* param = (Payload*)(dat);
+    while(true) {
+        std::shared_ptr<Workload> worker;
+        {
+            TakenMutex(param->lock_queue);
+            if( param->queue->empty() ) {
+                return nullptr;
+            }
+            worker = param->queue->front();
+            param->queue->pop();
+        }
+        worker->work();
+        {
+            TakenMutex(param->lock_result);
+            worker->fini();
+        }
+    }
+    return nullptr;
+}
+
+void WorkQueue::start() {
+    assert(impl->status == WorkQueue::PREPARING);
+    impl->status = WorkQueue::RUNNING;
+    for(size_t i = 0; i < impl->threads.size(); i++) {
+        impl->params[i].queue = &impl->queue;
+        impl->params[i].lock_queue  = &impl->lock_queue;
+        impl->params[i].lock_result = &impl->lock_result;
+        if( 0 != pthread_create(&impl->threads[i], nullptr, worker, &impl->params[i]) ) {
+            printf("Can't create thread %d!\n", 0);
+            exit(1);
+        }
+    }
+}
+
+void WorkQueue::join() {
+    assert(impl->status == WorkQueue::RUNNING);
+    impl->status = WorkQueue::STOPPED;
+    for(const auto& tid : impl->threads) {
+        pthread_join(tid, nullptr);
+    }
 }
