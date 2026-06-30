@@ -1,6 +1,7 @@
 #include "sim-threading.hpp"
 #include "sim-util.hpp"
 
+#include <iostream>
 #include <cassert>
 #include <cstdio>
 #include <map>
@@ -136,8 +137,8 @@ vector<trade_data> get_data(std::string const &fname) {
     return ret;
 }
 
-auto get_price_vector(int n, vector<trade_data> const &data) {
-    vector<money> p(n);
+auto get_price_vector(vector<trade_data> const &data) {
+    vector<money> p(2);
     p[0] = 1.L;
     for (auto const &d: data) {
         if (d.pair1.first == 0) {
@@ -159,39 +160,22 @@ auto get_price_vector(int n, vector<trade_data> const &data) {
 }
 
 TradeDataArray* get_all(json const &jin, int last_elems, vector<money> & price_vector) {
-    // 0 - usdt
-    // 1 - btc
-    // 2 - eth
-
-    size_t N = jin["datafile"].size();
-    if (N == 1) N = 2;
-    assert(N == 2 || N == 3);
+    if( jin["datafile"].size() != 1 ) {
+        std::cerr << "Minisim: only 2-coin pools are supported\n";
+        exit(1);
+    }
     vector<string> names;
     map<string, vector<trade_data>> all_trades;
     vector<pair<int, int>> pairs;
-    if (N == 2) {
-        pairs.push_back({0, 1});
-        string name = jin["datafile"][0];
-        auto d0 = get_data(name);
-        all_trades[name] = d0;
-        names.resize(1);
-        printf("using file '%s'\n", name.c_str());
-        names[0] = name;
-    } else {
-        pairs.push_back({0, 1});
-        pairs.push_back({0, 2});
-        pairs.push_back({1, 2});
-        names.resize(3);
-        names[0] = jin["datafile"][0];
-        auto d0 = get_data(names[0]);
-        names[1] = jin["datafile"][1];
-        auto d1 = get_data(names[1]);
-        names[2] = jin["datafile"][2];
-        auto d2 = get_data(names[2]);
-        all_trades[names[0]] = d0;
-        all_trades[names[1]] = d1;
-        all_trades[names[2]] = d2;
-    }
+
+    pairs.push_back({0, 1});
+    string name = jin["datafile"][0];
+    auto d0 = get_data(name);
+    all_trades[name] = d0;
+    names.resize(1);
+    printf("using file '%s'\n", name.c_str());
+    names[0] = name;
+    
     u64 min_time = 1ull << 63;
     u64 max_time = 0;
     for (auto name: names) {
@@ -269,7 +253,7 @@ TradeDataArray* get_all(json const &jin, int last_elems, vector<money> & price_v
         printf("Trimming: use last %d elements\n", last_elems);
         ret.erase(ret.begin(), ret.begin() + ret.size() - last_elems);
     }
-    price_vector = get_price_vector(N, ret);
+    price_vector = get_price_vector(ret);
 
     return new TradeDataVector(std::move(ret));
 }
