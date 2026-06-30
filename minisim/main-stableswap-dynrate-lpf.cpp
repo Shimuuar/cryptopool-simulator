@@ -803,7 +803,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         money _dx = 0;
         auto p_before = price_2(a, b);
         bool trade_happened = false;
-        auto apply_tweak_trade = [&](money spot_prev) {
+        auto apply_tweak_trade = [&]() {
             money ps_before = curve.p[1];
             money cur_get_p = curve.p_2();
             tweak_price_2(d.t, a, b, last_prices);
@@ -839,7 +839,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
 
         if (ctr > 0) {
             if (_low == 0) _low = last;
-            apply_tweak_trade((_high + _low) / 2.L);
+            apply_tweak_trade();
             ctr = 0;
         }
 
@@ -874,7 +874,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         _low = last;
         if (ctr > 0) {
             if (_high == 0) _high = last;
-            apply_tweak_trade((_high + _low) / 2.L);
+            apply_tweak_trade();
             ctr = 0;
         }
 
