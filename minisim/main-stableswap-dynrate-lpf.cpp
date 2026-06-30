@@ -385,7 +385,7 @@ struct Curve {
         return ret;
     }
 
-    money p_2(int i, int j) {
+    money p_2() {
         money xp[2];
         this->xp_2(xp);
         auto p = get_p_2(xp, this->D_2(), this->A, this->gamma);
@@ -493,7 +493,7 @@ struct Trader {
         // auto curve_res = curve.y_2(curve.x[i] + dx_raw, i, j);
         // auto ret = dx_raw  / (curve.x[j] - curve_res);
         // return ret;
-        return curve.p_2(i, j) * curve.p[j];
+        return curve.p_2() * curve.p[j];
     }
 
     money step_for_price_2(money p_min, money p_max, pair<int, int> p, money vol, money ext_vol);
@@ -812,7 +812,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         bool trade_happened = false;
         auto apply_tweak_trade = [&](money spot_prev) {
             money ps_before = curve.p[1];
-            money cur_get_p = curve.p_2(0, 1);
+            money cur_get_p = curve.p_2();
             (void)spot_prev;
             tweak_price_2(d.t, a, b, last_prices);
             last_prices = cur_get_p * ps_before;
@@ -905,7 +905,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         // only tweak_price every N seconds or on trade
         if (d.t - last_time_tweak_price >= 3600 || trade_happened) {
             previous_price_scale = curve.p[1];
-            money cur_get_p = curve.p_2(0, 1);
+            money cur_get_p = curve.p_2();
             norm = tweak_price_2(d.t, a, b, last_prices);
             // spot_prev = price_2(0, 1) * ps_pre / curve.p[1];
             last_prices = cur_get_p * previous_price_scale;
