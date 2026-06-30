@@ -741,7 +741,6 @@ money Trader::step_for_price_2(money p_min, money p_max, pair<int, int> p, money
 
 
 void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
-    map<pair<int, int>, money> lasts;
     size_t N = price_oracle.size();
     u64 start_t = 0;
     long double last_time = 0;
@@ -775,6 +774,9 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         out_file = fopen("detailed-output.json", "w");
         fprintf(out_file, "[");
     }
+    constexpr int a = 0;
+    constexpr int b = 1;
+    money last = price_oracle[b] / price_oracle[a];
     // Accumulator: sum of dt where relative deviation exceeds threshold
     for (size_t i = 0; i < total_elements; i++) {
         simdata->current = i;
@@ -789,18 +791,9 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             last_time = d.t - last_time;
         }
 
-        auto a = d.pair1.first;
-        auto b = d.pair1.second;
         money vol{0.L};
         auto ext_vol = money(d.volume * price_oracle[b]); //  <- now all is in USD
         int ctr{0};
-        money last;
-        auto itl = lasts.find({a, b});
-        if (itl == lasts.end()) {
-            last = price_oracle[b] / price_oracle[a];
-        } else {
-            last = itl->second;
-        }
         auto _high = last;
         auto _low = last;
         _slippage = 0; // reset per-iteration before any accumulation
@@ -885,7 +878,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             apply_tweak_trade((_high + _low) / 2.L);
             ctr = 0;
         }
-        lasts[d.pair1] = last;
 
         auto local_boost_rate = this->boost_rate;
         if (mid_fee < out_fee)
@@ -947,18 +939,11 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         }
         if (i % 1024 == 0 && log) {
             try {
-                long double last01;
-                auto it01 = lasts.find({0, 1});
-                if (it01 == lasts.end()) {
-                    last01 = price_oracle[1] / price_oracle[0];
-                } else {
-                    last01 = it01->second;
-                }
                 printf("t=%llu %.1Lf%%\ttrades: %d\tAMM: %.5Lf\tTarget: %.5Lf\tVol: %.4Lf\tPR:%.2Lf\txCP-growth: {%.10Lf}\tAPY:%.1Lf%%\ttw_apr:%.1Lf%%\tfee:%.3Lf%% %c\n",
                        d.t,
                        100.L * i / total_elements,
                        ctr,
-                       last01,
+                       last,
                        curve.p[1],
                        total_vol,
                        (xcp_profit_real - 1.) / (xcp_profit - 1.L),
