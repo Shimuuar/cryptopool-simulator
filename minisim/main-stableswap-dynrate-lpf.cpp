@@ -149,7 +149,6 @@ vector<trade_data> get_data(std::string const &fname) {
     printf("%s: load %zu elements\n", name_to_open.c_str(), ret.size());
     print_clock("parsing took", start_time, end_time);
     return ret;
-
 }
 
 auto get_price_vector(int n, vector<trade_data> const &data) {
@@ -1692,7 +1691,6 @@ bool simulation(simulation_data *data) {
     printf("APY-boost-2: %Lf%%\n", extdata.APY_boost_2 * 100.L);
     printf("APR-geo-mean: %Lf%%\n", extdata.APR_geo_mean * 100.L);
     printf("APY: %Lf%%\n", extdata.APY * 100.L);
-//    json_save(out_json_name, jout);
     auto end = get_thread_time();
     print_clock("Total simulation time", start_simulation, end);
     return true;
