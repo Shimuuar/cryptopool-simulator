@@ -350,15 +350,14 @@ struct Curve {
         this->A = jconf["A"];
         this->gamma = jconf["gamma"];
         money D = jconf["D"];
-        this->n = jconf["n"];
         if (!p.empty()) {
             this->p = p;
         } else {
-            this->p.resize(n, 1.L);
+            this->p.resize(2, 1.L);
         }
-        this->x.resize(n);
-        for(size_t i = 0; i < n; i++) {
-            x[i] = D / n / p[i];
+        this->x.resize(2);
+        for(size_t i = 0; i < 2; i++) {
+            x[i] = D / 2 / p[i];
         }
     }
 
@@ -394,10 +393,8 @@ struct Curve {
 
     money A;
     money gamma;
-    size_t n;
     vector<money> p;
     vector<money> x;
-
 };
 
 struct extra_data {
