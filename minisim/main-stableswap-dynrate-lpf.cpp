@@ -421,7 +421,9 @@ struct simulation_data {
 
 
 struct Trader {
-    Trader(json const &jconf, vector<money> const &p0) : curve(jconf, p0) {
+    Trader(json const &jconf, vector<money> const &p0) :
+        curve(jconf, p0)
+    {
         money D = jconf["D"];
         mid_fee = jconf["mid_fee"];
         out_fee = jconf["out_fee"];
@@ -445,7 +447,6 @@ struct Trader {
         this->p0 = p0;
         this->price_oracle = this->p0;
         this->last_price = this->p0;
-        // this->curve = Curve(A, gamma, D, n, p0);
         this->dx = D * 1e-8L;
         this->D0 = this->curve.D_2();
         this->xcp_0 = this->get_xcp_2();
