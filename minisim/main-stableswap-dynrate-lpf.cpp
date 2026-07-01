@@ -500,7 +500,7 @@ struct Trader {
         }
     }
 
-    money tweak_price_2(u64 t, int /*a*/, int /*b*/, money spot_prev);
+    money tweak_price_2(u64 t, money spot_prev);
 
 
     void simulate(simulation_data *simdata, extra_data *extdata);
@@ -752,7 +752,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         auto apply_tweak_trade = [&]() {
             money ps_before = curve.p[1];
             money cur_get_p = curve.p_2();
-            tweak_price_2(d.t, a, b, last_prices);
+            tweak_price_2(d.t, last_prices);
             last_prices = cur_get_p * ps_before;
             last_time_tweak_price = d.t;
         };
@@ -847,7 +847,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         if (d.t - last_time_tweak_price >= 3600 || trade_happened) {
             previous_price_scale = curve.p[1];
             money cur_get_p = curve.p_2();
-            tweak_price_2(d.t, a, b, last_prices);
+            tweak_price_2(d.t, last_prices);
             last_prices = cur_get_p * previous_price_scale;
             last_time_tweak_price = d.t;
         }
@@ -938,7 +938,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     }
 }
 
-money Trader::tweak_price_2(u64 t, int /*a*/, int /*b*/, money spot_prev) {
+money Trader::tweak_price_2(u64 t, money spot_prev) {
     const int N = 2;
 
     // --- Feed the EMA with the pool's own spot (pre-fee marginal price),
