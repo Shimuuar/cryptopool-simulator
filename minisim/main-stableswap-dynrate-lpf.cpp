@@ -494,7 +494,7 @@ struct Trader {
         return curve.p_2() * curve.p[j];
     }
 
-    money step_for_price_2(money p_min, money p_max, pair<int, int> p, money vol, money ext_vol);
+    money step_for_price_2(money p_min, money p_max, money vol, money ext_vol);
 
     void update_xcp_2(bool only_real=false) {
         auto _xcp = get_xcp_2();
@@ -596,7 +596,7 @@ struct Trader {
     Curve curve;
 };
 
-money Trader::step_for_price_2(money p_min, money p_max, pair<int, int> p, money vol, money ext_vol) {
+money Trader::step_for_price_2(money p_min, money p_max, money vol, money ext_vol) {
     money x0[2];
     copy_money_2(x0, &curve.x[0]);
     money _dx = 0;
@@ -604,11 +604,11 @@ money Trader::step_for_price_2(money p_min, money p_max, pair<int, int> p, money
     money x = 0;
     money y = 0;
     money price = 0;
-    auto _from = p.first;
-    auto _to = p.second;
+    int _from = 0;
+    int _to   = 1;
     if (p_min > 0) {
-        _from = p.second;
-        _to = p.first;
+        _from = 1;
+        _to = 0;
     }
     auto step0 = dx / curve.p[_from];  // step in units of currency being sold
     auto step = step0;
@@ -637,7 +637,7 @@ money Trader::step_for_price_2(money p_min, money p_max, pair<int, int> p, money
         curve.x[_to] = x0[_to] - _dy;
 
         // price in units d_first / d_second
-        if (_from == p.first) {
+        if (_from == 0) {
             price = _dx / _dy;
         }
         else {
@@ -651,7 +651,7 @@ money Trader::step_for_price_2(money p_min, money p_max, pair<int, int> p, money
         // _from == p.first - buy
         // _from != p.first - sell
         money new_profit;
-        if (_from == p.first)
+        if (_from == 0)
             new_profit = (_dx / price - _dx / p_max) * p_max;
         else
             new_profit = (price - p_min) * _dx;
@@ -694,7 +694,7 @@ money Trader::step_for_price_2(money p_min, money p_max, pair<int, int> p, money
             _dy = (x0[_to] - y) * fee_mul;
             curve.x[_to] = x0[_to] - _dy;
 
-            if (_from == p.first) {
+            if (_from == 0) {
                 price = _dx / _dy;
             }
             else {
@@ -708,7 +708,7 @@ money Trader::step_for_price_2(money p_min, money p_max, pair<int, int> p, money
             // _from == p.first - buy
             // _from != p.first - sell
             money new_profit;
-            if (_from == p.first)
+            if (_from == 0)
                 new_profit = (_dx / price - _dx / p_max) * p_max;
             else
                 new_profit = (price - p_min) * _dx;
@@ -724,7 +724,7 @@ money Trader::step_for_price_2(money p_min, money p_max, pair<int, int> p, money
     }
     // printf("*** p_min=%Lf, p_max=%Lf, _dy=%Lf, y=%Lf\n", p_min, p_max, _dy, curve.x[_to]);
 
-    if (_from == p.first) {
+    if (_from == 0) {
         price = (_dx + gas) / _dy;  // need to buy higher than without gas
         previous_profit = (_dx / price - _dx / p_max) * p_max;
     }
@@ -810,7 +810,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         };
 
         if ((max_price != 0) & (max_price > p_before)) {
-            auto step = step_for_price_2(0, max_price, d.pair1, vol, ext_vol);
+            auto step = step_for_price_2(0, max_price, vol, ext_vol);
             if (step > 0) {
                 auto dy = exchange_2(step, a, b);
                 vol += step * price_oracle[a];
@@ -845,7 +845,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         p_before = p_after;
 
         if ((min_price != 0) && (min_price < p_before)) {
-            auto step = step_for_price_2(min_price, 0, d.pair1, vol, ext_vol);
+            auto step = step_for_price_2(min_price, 0, vol, ext_vol);
             if (step > 0) {
                 auto dy = exchange_2(step, b, a);
                 vol += dy * price_oracle[a];
