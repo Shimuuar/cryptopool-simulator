@@ -37,16 +37,10 @@ struct trade_data {
     money low = 0;     // 3
     money close = 0;   // 4
     money volume = 0;  // 5
-    pair<int,int> pair1 = {0,0};
     void print() const {
-        printf("{ open: %.6Lf, high: %.6Lf low: %.6Lf close: %.6Lf t: %llu, volume: %.6Lf pair: (%d,%d)} ",
-               this->open, this->high, this->low, this->close, this->t, this->volume, this->pair1.first, this->pair1.second);
+        printf("{ open: %.6Lf, high: %.6Lf low: %.6Lf close: %.6Lf t: %llu, volume: %.6Lf } ",
+               this->open, this->high, this->low, this->close, this->t, this->volume);
     }
-};
-
-struct trade_one {
-    u64 t;
-    trade_data trade;
 };
 
 static inline money mabs(money val) noexcept {
@@ -138,23 +132,11 @@ vector<trade_data> get_data(std::string const &fname) {
 
 auto get_price_vector(vector<trade_data> const &data) {
     vector<money> p(2);
-    p[0] = 1.L;
-    for (auto const &d: data) {
-        if (d.pair1.first == 0) {
-            p[d.pair1.second] =  d.close;
-        }
-        bool zeros = false;
-        for (auto x: p) {
-            zeros |= x == 0;
-        }
-        if (!zeros) {
-            for (auto q: p) {
-                printf("%.16Lf ", q);
-            }
-            printf("\n");
-            return p;
-        }
+    if( data.empty() ) {
+        throw std::runtime_error("Empty data vector");
     }
+    p[0] = 1.L;
+    p[1] = data[0].close;
     return p;
 }
 
@@ -163,98 +145,65 @@ TradeDataArray* get_all(json const &jin, int last_elems, vector<money> & price_v
         std::cerr << "Minisim: only 2-coin pools are supported\n";
         exit(1);
     }
-    vector<string> names;
-    map<string, vector<trade_data>> all_trades;
-    vector<pair<int, int>> pairs;
+    vector<trade_data> all_trades;
 
-    pairs.push_back({0, 1});
     string name = jin["datafile"][0];
-    auto d0 = get_data(name);
-    all_trades[name] = d0;
-    names.resize(1);
+    all_trades = get_data(name);
     printf("using file '%s'\n", name.c_str());
-    names[0] = name;
     
     u64 min_time = 1ull << 63;
     u64 max_time = 0;
-    for (auto name: names) {
-        for (auto const &t: all_trades[name]) {
-            min_time = min(min_time, t.t);
-            max_time = max(max_time, t.t);
-        }
+    for (auto const &t: all_trades) {
+        min_time = min(min_time, t.t);
+        max_time = max(max_time, t.t);
     }
-    vector<trade_one> out;
+    vector<trade_data> out;
 
-    for (size_t i = 0; i < names.size(); i++) {
-        auto &trades = all_trades[names[i]];
-        for (auto &trade: trades) {
-            if (trade.t >= min_time && trade.t <= max_time) {
-                trade.pair1 = pairs[i];
-
-                trade_data trade_min;
-                trade_data trade_max;
-                // t, open, high, low, close, volume, pair1
-
-                // (1, 2) min
-                // (0, 2) min
-                // (0, 1) min
-                // (0, 1) max
-                // (0, 2) max
-                // (1, 2) max
-
-                trade_min.t = trade.t - (trade.pair1.first + trade.pair1.second) * 10 + 5;
-                trade_max.t = trade.t + (trade.pair1.first + trade.pair1.second) * 10 - 5;
-                trade_min.open = trade.open;
-                trade_max.close = trade.close;
-                trade_min.pair1 = trade.pair1;
-                trade_max.pair1 = trade.pair1;
-                // no halving here - volumes are later halved in decision-making
-                trade_min.volume = trade.volume;
-                trade_max.volume = trade.volume;
-
-                if (mabs(trade.open - trade.low) + mabs(trade.close - trade.high) < mabs(trade.open - trade.high) + mabs(trade.close - trade.low)) {
-                    trade_min.high = trade.low;
-                    trade_min.low = trade.low;
-                    trade_min.close = trade.low;
-                    trade_max.open = trade.high;
-                    trade_max.high = trade.high;
-                    trade_max.low = trade.high;
-                } else {
-                    trade_min.high = trade.high;
-                    trade_min.low = trade.high;
-                    trade_min.close = trade.high;
-                    trade_max.open = trade.low;
-                    trade_max.high = trade.low;
-                    trade_max.low = trade.low;
-                }
-
-                out.push_back({trade.t - (trade.pair1.first + trade.pair1.second) * 10 + 5, trade_min});
-                out.push_back({trade.t + (trade.pair1.first + trade.pair1.second) * 10 - 5, trade_max});
+    for (auto &trade: all_trades) {
+        if (trade.t >= min_time && trade.t <= max_time) {
+            trade_data trade_min;
+            trade_data trade_max;
+            
+            // (1, 2) min
+            // (0, 2) min
+            // (0, 1) min
+            // (0, 1) max
+            // (0, 2) max
+            // (1, 2) max
+            trade_min.t = trade.t - 1 * 10 + 5;
+            trade_max.t = trade.t + 1 * 10 - 5;
+            trade_min.open = trade.open;
+            trade_max.close = trade.close;
+            // no halving here - volumes are later halved in decision-making
+            trade_min.volume = trade.volume;
+            trade_max.volume = trade.volume;
+            
+            if (mabs(trade.open - trade.low) + mabs(trade.close - trade.high) < mabs(trade.open - trade.high) + mabs(trade.close - trade.low)) {
+                trade_min.high = trade.low;
+                trade_min.low = trade.low;
+                trade_min.close = trade.low;
+                trade_max.open = trade.high;
+                trade_max.high = trade.high;
+                trade_max.low = trade.high;
+            } else {
+                trade_min.high = trade.high;
+                trade_min.low = trade.high;
+                trade_min.close = trade.high;
+                trade_max.open = trade.low;
+                trade_max.high = trade.low;
+                trade_max.low = trade.low;
             }
+            
+            out.push_back(trade_min);
+            out.push_back(trade_max);
         }
     }
-    auto start_time = get_thread_time();
-    //debug_print("out first 5", out, 5);
-    //debug_print("out last 5", out, -5);
-    sort(out.begin(), out.end(), [](trade_one const &l, trade_one const &r) {
-        return l.t < r.t;
-    });
-    auto end_time = get_thread_time();
-    //debug_print("sorted out first 5", out, 5);
-    //debug_print("sorted out last 5", out, -5);
-    vector<trade_data> ret;
-    for (auto &q: out) {
-        ret.push_back(q.trade);
-    }
-    //printf("total %zu elements\n", ret.size());
-    print_clock("sorting took", start_time, end_time);
     if (last_elems > 0) {
         printf("Trimming: use last %d elements\n", last_elems);
-        ret.erase(ret.begin(), ret.begin() + ret.size() - last_elems);
+        out.erase(out.begin(), out.begin() + out.size() - last_elems);
     }
-    price_vector = get_price_vector(ret);
-
-    return new TradeDataVector(std::move(ret));
+    price_vector = get_price_vector(out);
+    return new TradeDataVector(std::move(out));
 }
 
 money geometric_mean_2(money const *x) {
