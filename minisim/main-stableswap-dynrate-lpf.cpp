@@ -787,7 +787,8 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             _high = last;
             
             if (ctr > 0) {
-                if (_low == 0) _low = last;
+                if (_low == 0)
+                    _low = last;
                 apply_tweak_trade();
             }
         }
@@ -822,9 +823,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                 imbalance += logl(mabs((_high + _low) / (2.L * curve.p[1]))) * curve.A * last_time;
             }
             
-            _low = last;
             if (ctr > 0) {
-                if (_high == 0) _high = last;
                 apply_tweak_trade();
             }
         }
@@ -844,17 +843,13 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             this->boost_integral *= _boost;
         }
 
-        long double norm = 0;
         // only tweak_price every N seconds or on trade
         if (d.t - last_time_tweak_price >= 3600 || trade_happened) {
             previous_price_scale = curve.p[1];
             money cur_get_p = curve.p_2();
-            norm = tweak_price_2(d.t, a, b, last_prices);
-            // spot_prev = price_2(0, 1) * ps_pre / curve.p[1];
+            tweak_price_2(d.t, a, b, last_prices);
             last_prices = cur_get_p * previous_price_scale;
             last_time_tweak_price = d.t;
-            // XXX: Suppress unused
-            (void)norm;
         }
 
         money _xp[2];
