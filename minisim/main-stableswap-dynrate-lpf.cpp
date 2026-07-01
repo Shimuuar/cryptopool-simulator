@@ -725,11 +725,11 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     money last = price_oracle[b] / price_oracle[a];
     // Accumulator: sum of dt where relative deviation exceeds threshold
     for (size_t i = 0; i < total_elements; i++) {
+        trade_data d = mapped_data[i];
         money _slippage = 0;
 
         simdata->current = i;
 
-        trade_data d = *mapped_data++;
         if (i == 0) {
             start_t = d.t;
             last_time_tweak_price = d.t;
@@ -741,14 +741,13 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
 
         money vol     = 0.0L;
         money ext_vol = money(d.volume * price_oracle[b]); //  <- now all is in USD
-        int ctr    = 0;
         auto _high = last;
         auto _low  = last;
 
         const money max_price = d.high * (1 - ext_fee);
         const money min_price = d.low  * (1 + ext_fee);
-        money _dx = 0;
-        auto p_before = price_2(a, b);
+        money p_before = price_2(a, b);
+        money p_after  = 0;
         bool trade_happened = false;
         auto apply_tweak_trade = [&]() {
             money ps_before = curve.p[1];
@@ -758,72 +757,78 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             last_time_tweak_price = d.t;
         };
 
-        if ((max_price != 0) & (max_price > p_before)) {
-            auto step = step_for_price_2(0, max_price, vol, ext_vol);
-            if (step > 0) {
-                auto dy = exchange_2(step, a, b);
-                vol += step * price_oracle[a];
-                _dx += dy;
-                last = price_2(a, b);
-                ctr += 1;
+        {
+            int   ctr = 0;
+            money _dx = 0;
+            if ((max_price != 0) & (max_price > p_before)) {
+                auto step = step_for_price_2(0, max_price, vol, ext_vol);
+                if (step > 0) {
+                    auto dy = exchange_2(step, a, b);
+                    vol += step * price_oracle[a];
+                    _dx += dy;
+                    last = price_2(a, b);
+                    ctr += 1;
+                }
+            }
+            
+            p_after = price_2(a, b);
+            
+            if (p_before != p_after) {
+                auto v = _dx / (curve.x[b] + curve.x[a] / p_after) * N / 2;
+                _slippage = (_dx * (p_before + p_after)) / (2.L * (mabs(p_before - p_after)) * curve.x[b]);
+                volume += v;
+            }
+            if (_slippage > 1e-10) {
+                slippage_count += last_time;
+                antislippage += last_time * _slippage;
+                slippage += last_time / _slippage;
+                imbalance += mabs(logl((_high + _low) / (2.L * curve.p[1]))) * curve.A * last_time;
+            }
+            _high = last;
+            
+            if (ctr > 0) {
+                if (_low == 0) _low = last;
+                apply_tweak_trade();
             }
         }
 
-        auto p_after = price_2(a, b);
+        {
+            int   ctr = 0;
+            money _dx = 0;
+            p_before = p_after;
 
-        if (p_before != p_after) {
-            auto v = _dx / (curve.x[b] + curve.x[a] / p_after) * N / 2;
-            _slippage = (_dx * (p_before + p_after)) / (2.L * (mabs(p_before - p_after)) * curve.x[b]);
-            volume += v;
-        }
-        if (_slippage > 1e-10) {
-            slippage_count += last_time;
-            antislippage += last_time * _slippage;
-            slippage += last_time / _slippage;
-            imbalance += mabs(logl((_high + _low) / (2.L * curve.p[1]))) * curve.A * last_time;
-        }
-        _high = last;
+            if ((min_price != 0) && (min_price < p_before)) {
+                auto step = step_for_price_2(min_price, 0, vol, ext_vol);
+                if (step > 0) {
+                    auto dy = exchange_2(step, b, a);
+                    vol += dy * price_oracle[a];
+                    _dx += step;
+                    last = price_2(a, b);
+                    ctr += 1;
+                }
+            }
 
-        if (ctr > 0) {
-            if (_low == 0) _low = last;
-            apply_tweak_trade();
-            ctr = 0;
-        }
+            p_after = price_2(a, b);
 
-        _dx = 0;
-        p_before = p_after;
-
-        if ((min_price != 0) && (min_price < p_before)) {
-            auto step = step_for_price_2(min_price, 0, vol, ext_vol);
-            if (step > 0) {
-                auto dy = exchange_2(step, b, a);
-                vol += dy * price_oracle[a];
-                _dx += step;
-                last = price_2(a, b);
-                ctr += 1;
+            if (p_before != p_after) {
+                auto v = _dx / (curve.x[b] + curve.x[a] / p_after) * N / 2;
+                _slippage = (_dx * (p_before + p_after)) / (2.L * (mabs(p_before - p_after)) * curve.x[b]);
+                volume += v;
+            }
+            if (_slippage > 1e-10) {
+                slippage_count += last_time;
+                antislippage += last_time * _slippage;
+                slippage += last_time / _slippage;
+                imbalance += logl(mabs((_high + _low) / (2.L * curve.p[1]))) * curve.A * last_time;
+            }
+            
+            _low = last;
+            if (ctr > 0) {
+                if (_high == 0) _high = last;
+                apply_tweak_trade();
             }
         }
 
-        p_after = price_2(a, b);
-
-        if (p_before != p_after) {
-            auto v = _dx / (curve.x[b] + curve.x[a] / p_after) * N / 2;
-            _slippage = (_dx * (p_before + p_after)) / (2.L * (mabs(p_before - p_after)) * curve.x[b]);
-            volume += v;
-        }
-        if (_slippage > 1e-10) {
-            slippage_count += last_time;
-            antislippage += last_time * _slippage;
-            slippage += last_time / _slippage;
-            imbalance += logl(mabs((_high + _low) / (2.L * curve.p[1]))) * curve.A * last_time;
-        }
-
-        _low = last;
-        if (ctr > 0) {
-            if (_high == 0) _high = last;
-            apply_tweak_trade();
-            ctr = 0;
-        }
 
         auto local_boost_rate = this->boost_rate;
         if (mid_fee < out_fee)
@@ -888,7 +893,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                 printf("t=%llu %.1Lf%%\ttrades: %d\tAMM: %.5Lf\tTarget: %.5Lf\tVol: %.4Lf\tPR:%.2Lf\txCP-growth: {%.10Lf}\tAPY:%.1Lf%%\ttw_apr:%.1Lf%%\tfee:%.3Lf%% %c\n",
                        d.t,
                        100.L * i / total_elements,
-                       ctr,
+                       0, // FIXME: kept for keeping golden tests
                        last,
                        curve.p[1],
                        total_vol,
