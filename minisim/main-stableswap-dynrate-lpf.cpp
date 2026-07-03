@@ -384,8 +384,6 @@ struct simulation_data {
     const Prices *price_vector = nullptr;
     const TradeDataArray *test_data = nullptr;
     extra_data result;
-    size_t total = 0;
-    size_t current = 0;
 };
 
 
@@ -672,7 +670,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     long double last_time = 0;
     long double last_time_tweak_price = 0;
     const size_t total_elements = simdata->test_data->size();
-    simdata->total = total_elements;
     const trade_data* mapped_data = simdata->test_data->array();
     money xcp_profit_real_prev = 1.L;
     money xcp_profit_real_adj = 1.L;
@@ -711,7 +708,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
 
     for (size_t i = 0; i < total_elements; i++) {
         trade_data d = mapped_data[i];
-        simdata->current = i;
 
         if (i == 0) {
             last_time_tweak_price = d.t;
@@ -1109,8 +1105,6 @@ int main(int argc, char **argv) {
         cd.test_data = &*test_data;
         cd.price_vector = &price_vector;
         cd.jconf = &jin["configuration"][i];
-        cd.current = 0;
-        cd.total = 0;
         work_queue.enqueue(new SimulationTask(cd, &result));
     }
     work_queue.start();
