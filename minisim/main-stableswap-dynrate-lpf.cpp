@@ -24,6 +24,27 @@ using u64 = unsigned long long;
 using money = long double;
 static const int MAX_ARRAY = 3;
 
+struct Prices {
+    money px;
+    money py;
+
+    money operator[](int i) const {
+        if( 0 == i ) return px;
+        if( 1 == i ) return py;
+        abort();
+    }
+};
+
+struct Tokens {
+    money x;
+    money y;
+
+    money operator[](int i) const {
+        if( 0 == i ) return x;
+        if( 1 == i ) return y;
+        abort();
+    }
+};
 
 
 static void print_clock(string const &mesg, double start, double end) {
@@ -130,17 +151,17 @@ vector<trade_data> get_data(std::string const &fname) {
     return ret;
 }
 
-auto get_price_vector(vector<trade_data> const &data) {
-    vector<money> p(2);
+Prices get_price_vector(vector<trade_data> const &data) {
+    Prices p;
     if( data.empty() ) {
         throw std::runtime_error("Empty data vector");
     }
-    p[0] = 1.L;
-    p[1] = data[0].close;
+    p.px = 1.L;
+    p.py = data[0].close;
     return p;
 }
 
-TradeDataArray* get_all(json const &jin, int last_elems, vector<money> & price_vector) {
+TradeDataArray* get_all(json const &jin, int last_elems, Prices& price_vector) {
     if( jin["datafile"].size() != 1 ) {
         std::cerr << "Minisim: only 2-coin pools are supported\n";
         exit(1);
@@ -295,15 +316,12 @@ auto solve_D(money A, money gamma, money const *x) {
 }
 
 struct Curve {
-    Curve(json const &jconf, vector<money> const &p) {
+    Curve(json const &jconf, const Prices &_p) :
+        p(_p)
+    {
         this->A = jconf["A"];
         this->gamma = jconf["gamma"];
         money D = jconf["D"];
-        if (!p.empty()) {
-            this->p = p;
-        } else {
-            this->p.resize(2, 1.L);
-        }
         this->x.resize(2);
         for(size_t i = 0; i < 2; i++) {
             x[i] = D / 2 / p[i];
@@ -340,9 +358,9 @@ struct Curve {
         return p;
     }
 
-    money A;
-    money gamma;
-    vector<money> p;
+    money  A;
+    money  gamma;
+    Prices p;
     vector<money> x;
 };
 
@@ -361,7 +379,7 @@ struct extra_data {
 struct simulation_data {
     int num = 0;
     json const *jconf = nullptr;
-    vector<money> const *price_vector = nullptr;
+    const Prices *price_vector = nullptr;
     const TradeDataArray *test_data = nullptr;
     extra_data result;
     size_t total = 0;
@@ -370,7 +388,7 @@ struct simulation_data {
 
 
 struct Trader {
-    Trader(json const &jconf, vector<money> const &p0) :
+    Trader(json const &jconf, const Prices &p0) :
         curve(jconf, p0)
     {
         money D = jconf["D"];
@@ -493,9 +511,8 @@ struct Trader {
         if (t > this->t) {
             money alpha = powl(0.5, ((money)(t - this->t) / this->ma_half_time));
             alpha = min(alpha, 1.L);
-            for (size_t k = 1; k < price_vector.size(); k++) {
-                price_oracle[k] = price_vector[k] * (1 - alpha) + price_oracle[k] * alpha;
-            }
+            const size_t k = 1;
+            price_oracle.py = price_vector[k] * (1 - alpha) + price_oracle.py * alpha;
             this->t = t;
         }
     }
@@ -505,9 +522,9 @@ struct Trader {
 
     void simulate(simulation_data *simdata, extra_data *extdata);
 
-    vector<money> p0;
-    vector<money> price_oracle;
-    vector<money> last_price;
+    Prices p0;
+    Prices price_oracle;
+    Prices last_price;
     u64 t;
     money dx;
     money mid_fee;
@@ -688,7 +705,7 @@ money Trader::step_for_price_2(money p_min, money p_max, money vol, money ext_vo
 
 
 void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
-    size_t N = price_oracle.size();
+    size_t N = 2;
     u64 start_t = 0;
     long double last_time = 0;
     long double last_time_tweak_price = 0;
@@ -975,25 +992,25 @@ money Trader::tweak_price_2(u64 t, money spot_prev) {
     heavy_tx += 1;
     is_light = false;
 
-    money p_new[MAX_ARRAY];
-    p_new[0] = 1.L;
-    for (size_t i = 1; i < price_oracle.size(); i++) {
-        auto p_target = curve.p[i];
-        auto p_real = price_oracle[i];
-        p_new[i] = p_target + _adjustment_step * (p_real - p_target) / norm;
+    Prices p_new;
+    p_new.px = 1.L;
+    {
+        auto p_target = curve.p.py;
+        auto p_real = price_oracle[1];
+        p_new.py = p_target + _adjustment_step * (p_real - p_target) / norm;
     }
-    money old_p[MAX_ARRAY];
-    copy_money_2(old_p, &curve.p[0]);
+    Prices old_p;
+    old_p = curve.p;
 
     auto old_profit = xcp_profit_real;
     auto old_xcp = xcp;
 
-    copy_money_2(&curve.p[0],p_new);
+    curve.p = p_new;
     update_xcp_2(true);
 
     if (xcp_profit_real <= xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction)) {
         //  If real profit is less than equilibrium - revert params back
-        copy_money_2(&curve.p[0], old_p);
+        curve.p = old_p;
         xcp_profit_real = old_profit;
         xcp = old_xcp;
         not_adjusted = false;
@@ -1113,7 +1130,7 @@ int main(int argc, char **argv) {
     }
 
     printf("Total %d configurations will be processed in %d threads\n", configurations, THREADS);
-    vector<money> price_vector;
+    Prices price_vector;
     std::unique_ptr<TradeDataArray> test_data(
         get_all(jin, LAST_ELEMS, price_vector));
     double time_start = get_total_time();
