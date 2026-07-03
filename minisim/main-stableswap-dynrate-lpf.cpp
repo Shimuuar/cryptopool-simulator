@@ -692,7 +692,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     u64 start_t = 0;
     long double last_time = 0;
     long double last_time_tweak_price = 0;
-    size_t total_elements = simdata->test_data->size();
+    const size_t total_elements = simdata->test_data->size();
     simdata->total = total_elements;
     const trade_data* mapped_data = simdata->test_data->array();
     money xcp_profit_real_prev = 1.L;
@@ -702,18 +702,14 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     money antislippage = 0;
     money slippage_count = 0;
     money last_prices = price_2(0, 1);
-    money previous_price_scale = curve.p[1];
     money imbalance_integral = 0;
     // Moving 1-month window geometric-mean APY tracking
-    const u64 TW_APR_SECONDS = 2 * 30 * 86400;  // time window for APR_geo_mean
-    const money TW_APR_PER_YEAR = (365.L * 86400.L) / TW_APR_SECONDS;
+    constexpr u64 TW_APR_SECONDS = 2 * 30 * 86400;  // time window for APR_geo_mean
+    constexpr money TW_APR_PER_YEAR = (365.L * 86400.L) / TW_APR_SECONDS;
     std::deque<std::pair<u64, money>> xcp_history;
     money sum_log_tw_apr = 0;
     money tw_apr = 0;
     long long n_monthly_samples = 0;
-    // Track TVL growth in coin0 units and HODL baseline
-    // TVL in coin0 units: sum_i x[i] * p[i] (p[0] == 1)
-    vector<money> x_start = curve.x; // initial LP balances by coin
 
     FILE *out_file = nullptr;
     if (log) {
@@ -740,15 +736,12 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         }
 
         money vol     = 0.0L;
-        money ext_vol = money(d.volume * price_oracle[b]); //  <- now all is in USD
+        const money ext_vol = money(d.volume * price_oracle[b]); //  <- now all is in USD
         auto _high = last;
         auto _low  = last;
 
-        const money max_price = d.high * (1 - ext_fee);
-        const money min_price = d.low  * (1 + ext_fee);
         money p_before = price_2(a, b);
         money p_after  = 0;
-        bool trade_happened = false;
         auto apply_tweak_trade = [&]() {
             money ps_before = curve.p[1];
             money cur_get_p = curve.p_2();
@@ -758,6 +751,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         };
 
         {
+            const money max_price = d.high * (1 - ext_fee);
             int   ctr = 0;
             money _dx = 0;
             if ((max_price != 0) & (max_price > p_before)) {
@@ -794,6 +788,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         }
 
         {
+            const money min_price = d.low  * (1 + ext_fee);
             int   ctr = 0;
             money _dx = 0;
             p_before = p_after;
@@ -844,8 +839,10 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         }
 
         // only tweak_price every N seconds or on trade
-        if (d.t - last_time_tweak_price >= 3600 || trade_happened) {
-            previous_price_scale = curve.p[1];
+        //
+        // FIXME: Contrary to comment we only tweak price on trade
+        if (d.t - last_time_tweak_price >= 3600) {
+            money previous_price_scale = curve.p[1];
             money cur_get_p = curve.p_2();
             tweak_price_2(d.t, last_prices);
             last_prices = cur_get_p * previous_price_scale;
