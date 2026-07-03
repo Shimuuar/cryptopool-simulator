@@ -674,7 +674,6 @@ money Trader::step_for_price_2(money p_min, money p_max, money vol, money ext_vo
 
 void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     size_t N = 2;
-    u64 start_t = 0;
     long double last_time = 0;
     long double last_time_tweak_price = 0;
     const size_t total_elements = simdata->test_data->size();
@@ -711,12 +710,15 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     constexpr int b = 1;
     money last = price_oracle[b] / price_oracle[a];
     // Accumulator: sum of dt where relative deviation exceeds threshold
+
+    assert(total_elements > 0 );
+    const u64 start_t = mapped_data[0].t;
+
     for (size_t i = 0; i < total_elements; i++) {
         trade_data d = mapped_data[i];
         simdata->current = i;
 
         if (i == 0) {
-            start_t = d.t;
             last_time_tweak_price = d.t;
             this->t = d.t;
         }
