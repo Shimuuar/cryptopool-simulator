@@ -411,9 +411,8 @@ struct Trader {
         this->boost_min = this->boost_min / (86400L * 365L);
         this->boost_integral = 1.L;
         log = jconf["log"];
-        this->p0 = p0;
-        this->price_oracle = this->p0;
-        this->last_price = this->p0;
+        this->price_oracle = p0;
+        this->last_price   = p0;
         this->dx = D * 1e-8L;
         this->D0 = this->curve.D_2();
         this->xcp_0 = this->get_xcp_2();
@@ -522,7 +521,6 @@ struct Trader {
 
     void simulate(simulation_data *simdata, extra_data *extdata);
 
-    Prices p0;
     Prices price_oracle;
     Prices last_price;
     u64 t;
