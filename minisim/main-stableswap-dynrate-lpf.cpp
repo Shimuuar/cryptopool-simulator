@@ -444,12 +444,8 @@ struct Trader {
         return geometric_mean_2(X);
     }
 
-    auto price_2(int i, int j) {
-        // auto dx_raw = dx  / curve.p[i];
-        // auto curve_res = curve.y_2(curve.x[i] + dx_raw, i, j);
-        // auto ret = dx_raw  / (curve.x[j] - curve_res);
-        // return ret;
-        return curve.p_2() * curve.p[j];
+    auto price_2() {
+        return curve.p_2() * curve.p.py;
     }
 
     money step_for_price_2(money p_min, money p_max, money vol, money ext_vol);
@@ -687,7 +683,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     money slippage_count = 0;
     money volume = 0;
     money total_vol = 0;
-    money last_prices = price_2(0, 1);
+    money last_prices = price_2();
     money imbalance_integral = 0;
     money APY = 0.0;
     money APY_boost = 0.0;
@@ -731,7 +727,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         auto _high = last;
         auto _low  = last;
 
-        money p_before = price_2(a, b);
+        money p_before = price_2();
         money p_after  = 0;
         auto apply_tweak_trade = [&]() {
             money ps_before = curve.p[1];
@@ -752,12 +748,12 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                     auto dy = exchange_2(step, a, b);
                     vol += step * price_oracle[a];
                     _dx += dy;
-                    last = price_2(a, b);
+                    last = price_2();
                     ctr += 1;
                 }
             }
             
-            p_after = price_2(a, b);
+            p_after = price_2();
             
             if (p_before != p_after) {
                 auto v = _dx / (curve.x[b] + curve.x[a] / p_after) * N / 2;
@@ -792,12 +788,12 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                     auto dy = exchange_2(step, b, a);
                     vol += dy * price_oracle[a];
                     _dx += step;
-                    last = price_2(a, b);
+                    last = price_2();
                     ctr += 1;
                 }
             }
 
-            p_after = price_2(a, b);
+            p_after = price_2();
 
             if (p_before != p_after) {
                 auto v = _dx / (curve.x[b] + curve.x[a] / p_after) * N / 2;
