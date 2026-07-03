@@ -417,17 +417,14 @@ struct Trader {
         this->price_oracle = p0;
         this->last_price   = p0;
         this->dx = D * 1e-8L;
-        this->D0 = this->curve.D_2();
-        this->xcp_0 = this->get_xcp_2();
         this->xcp_profit = 1.L;
         this->xcp_profit_real = 1.L;
-        this->xcp = this->xcp_0;
+        this->xcp = this->get_xcp_2();
         this->total_vol = 0.0;
         this->volume = 0;
         this->not_adjusted = false;
         this->heavy_tx = 0;
         this->light_tx = 0;
-        this->is_light = false;
         this->t = 0;
 
         // Initialize variables
@@ -520,8 +517,7 @@ struct Trader {
     money dx;
     money mid_fee;
     money out_fee;
-    money D0;
-    money xcp, xcp_0;
+    money xcp;
     money xcp_profit;
     money xcp_profit_real;
     money adjustment_step;
@@ -538,10 +534,6 @@ struct Trader {
     money boost_integral;
     money lp_profit_fraction;
     money volume;
-    money slippage;
-    money imbalance;
-    money antislippage;
-    money slippage_count;
     long double APY;
     long double APY_boost;
     long double APY_boost_2;
@@ -549,7 +541,6 @@ struct Trader {
     bool not_adjusted;
     int  heavy_tx;
     int  light_tx;
-    bool is_light;
     Curve curve;
 };
 
@@ -890,7 +881,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         }
         if (i % 1024 == 0 && log) {
             try {
-                printf("t=%llu %.1Lf%%\ttrades: %d\tAMM: %.5Lf\tTarget: %.5Lf\tVol: %.4Lf\tPR:%.2Lf\txCP-growth: {%.10Lf}\tAPY:%.1Lf%%\ttw_apr:%.1Lf%%\tfee:%.3Lf%% %c\n",
+                printf("t=%llu %.1Lf%%\ttrades: %d\tAMM: %.5Lf\tTarget: %.5Lf\tVol: %.4Lf\tPR:%.2Lf\txCP-growth: {%.10Lf}\tAPY:%.1Lf%%\ttw_apr:%.1Lf%%\tfee:%.3Lf%% .\n",
                        d.t,
                        100.L * i / total_elements,
                        0, // FIXME: kept for keeping golden tests
@@ -901,8 +892,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                        xcp_profit_real,
                        APY * 100.L,
                        tw_apr * 100.L,
-                       fee_2() * 100.L,
-                       is_light ? '*' : '.');
+                       fee_2() * 100.L);
             } catch (std::exception const &e) {
                 printf("caught '%s'\n", e.what());
             }
@@ -968,7 +958,6 @@ money Trader::tweak_price_2(u64 t, money spot_prev) {
     auto _adjustment_step = min(adjustment_step, norm / 5);
     if (norm <= _adjustment_step) {
         // Already close to the target price
-        is_light = true;
         light_tx += 1;
         return norm;
     }
@@ -977,11 +966,9 @@ money Trader::tweak_price_2(u64 t, money spot_prev) {
     }
     if (not not_adjusted) {
         light_tx += 1;
-        is_light = true;
         return norm;
     }
     heavy_tx += 1;
-    is_light = false;
 
     Prices p_new;
     p_new.px = 1.L;
