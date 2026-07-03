@@ -363,8 +363,8 @@ struct Curve {
 
     money  A;
     money  gamma;
-    Prices p;
-    Tokens x;
+    Prices p;     // Price scale for AMM
+    Tokens x;     // Amount of tokens in AMM
 };
 
 struct extra_data {
