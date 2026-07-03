@@ -39,7 +39,12 @@ struct Tokens {
     money x;
     money y;
 
-    money operator[](int i) const {
+    const money& operator[](int i) const {
+        if( 0 == i ) return x;
+        if( 1 == i ) return y;
+        abort();
+    }
+    money& operator[](int i) {
         if( 0 == i ) return x;
         if( 1 == i ) return y;
         abort();
@@ -322,10 +327,8 @@ struct Curve {
         this->A = jconf["A"];
         this->gamma = jconf["gamma"];
         money D = jconf["D"];
-        this->x.resize(2);
-        for(size_t i = 0; i < 2; i++) {
-            x[i] = D / 2 / p[i];
-        }
+        x.x = D / 2 / p.px;
+        x.y = D / 2 / p.py;
     }
 
     auto xp_2(money *ret) const {
@@ -361,7 +364,7 @@ struct Curve {
     money  A;
     money  gamma;
     Prices p;
-    vector<money> x;
+    Tokens x;
 };
 
 struct extra_data {
@@ -472,19 +475,13 @@ struct Trader {
         xcp = _xcp;
     }
 
-
-    inline void static copy_money_2(money *to, money const *from) {
-        to[0] = from[0];
-        to[1] = from[1];
-    }
-
     money exchange_2(money dx, int i, int j, money max_price=1e100L) {
         //"""
         //Buy y for x
         //"""
         try {
-            money x_old[2];
-            copy_money_2(x_old, &curve.x[0]);
+            Tokens x_old;
+            x_old = curve.x;
             auto x = curve.x[i] + dx;
             auto y = curve.y_2(x, i, j);
 
@@ -495,7 +492,7 @@ struct Trader {
 
             curve.x[j] = x_old[j] - dy * fee_mul;
             if ((dx / dy) > max_price or dy < 0) {
-                copy_money_2(&curve.x[0], x_old);
+                curve.x = x_old;
                 return 0;
             }
             update_xcp_2();
@@ -561,8 +558,8 @@ struct Trader {
 };
 
 money Trader::step_for_price_2(money p_min, money p_max, money vol, money ext_vol) {
-    money x0[2];
-    copy_money_2(x0, &curve.x[0]);
+    Tokens x0;
+    x0 = curve.x;
     money _dx = 0;
     money _dy = 0;
     money x = 0;
@@ -609,7 +606,7 @@ money Trader::step_for_price_2(money p_min, money p_max, money vol, money ext_vo
         }
         auto v = vol + _dy * curve.p[_to];
 
-        copy_money_2(&curve.x[0], x0);  // restore the state
+        curve.x = x0;  // restore the state
         // printf("::: %Lf %Lf %Lf %Lf\n", price, inst_price, p_min, p_max);
 
         // _from == p.first - buy
@@ -666,7 +663,7 @@ money Trader::step_for_price_2(money p_min, money p_max, money vol, money ext_vo
             }
             auto v = vol + _dy * curve.p[_to];
 
-            copy_money_2(&curve.x[0], x0);  // restore the state
+            curve.x = x0;  // restore the state
 
 
             // _from == p.first - buy
