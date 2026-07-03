@@ -421,7 +421,6 @@ struct Trader {
         this->xcp_profit_real = 1.L;
         this->xcp = this->get_xcp_2();
         this->total_vol = 0.0;
-        this->volume = 0;
         this->not_adjusted = false;
         this->heavy_tx = 0;
         this->light_tx = 0;
@@ -533,7 +532,6 @@ struct Trader {
     money boost_min;
     money boost_integral;
     money lp_profit_fraction;
-    money volume;
     long double APY;
     long double APY_boost;
     long double APY_boost_2;
@@ -700,6 +698,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     money imbalance = 0;
     money antislippage = 0;
     money slippage_count = 0;
+    money volume = 0;
     money last_prices = price_2(0, 1);
     money imbalance_integral = 0;
     // Moving 1-month window geometric-mean APY tracking
