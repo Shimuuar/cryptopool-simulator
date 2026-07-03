@@ -722,8 +722,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     // Accumulator: sum of dt where relative deviation exceeds threshold
     for (size_t i = 0; i < total_elements; i++) {
         trade_data d = mapped_data[i];
-        money _slippage = 0;
-
         simdata->current = i;
 
         if (i == 0) {
@@ -752,6 +750,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
 
         {
             const money max_price = d.high * (1 - ext_fee);
+            money _slippage = 0;
             int   ctr = 0;
             money _dx = 0;
             if ((max_price != 0) & (max_price > p_before)) {
@@ -789,6 +788,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
 
         {
             const money min_price = d.low  * (1 + ext_fee);
+            money _slippage = 0;
             int   ctr = 0;
             money _dx = 0;
             p_before = p_after;
