@@ -498,7 +498,7 @@ struct Trader {
         }
     }
 
-    money tweak_price_2(u64 t, money spot_prev);
+    void tweak_price_2(u64 t, money spot_prev);
 
 
     void simulate(simulation_data *simdata, extra_data *extdata);
@@ -927,7 +927,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     }
 }
 
-money Trader::tweak_price_2(u64 t, money spot_prev) {
+void Trader::tweak_price_2(u64 t, money spot_prev) {
     const int N = 2;
 
     // --- Feed the EMA with the pool's own spot (pre-fee marginal price),
@@ -952,14 +952,14 @@ money Trader::tweak_price_2(u64 t, money spot_prev) {
     if (norm <= _adjustment_step) {
         // Already close to the target price
         light_tx += 1;
-        return norm;
+        return;
     }
     if (not not_adjusted and (xcp_profit_real > xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction) + allowed_extra_profit)) {
         not_adjusted = true;
     }
     if (not not_adjusted) {
         light_tx += 1;
-        return norm;
+        return;
     }
     heavy_tx += 1;
 
@@ -988,7 +988,6 @@ money Trader::tweak_price_2(u64 t, money spot_prev) {
         // auto val = ((xcp_profit_real - 1.L - (xcp_profit - 1.L) / 2.L));
         // printf("%.10Lf\n", val);
     }
-    return norm;
 }
 
 
