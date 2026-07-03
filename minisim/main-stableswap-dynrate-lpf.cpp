@@ -420,7 +420,6 @@ struct Trader {
         this->xcp_profit = 1.L;
         this->xcp_profit_real = 1.L;
         this->xcp = this->get_xcp_2();
-        this->total_vol = 0.0;
         this->not_adjusted = false;
         this->heavy_tx = 0;
         this->light_tx = 0;
@@ -517,7 +516,6 @@ struct Trader {
     money allowed_extra_profit;
     int log;
     money fee_gamma;
-    money total_vol;
     int ma_half_time;
     money ext_fee;
     money gas_fee;
@@ -689,6 +687,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     money antislippage = 0;
     money slippage_count = 0;
     money volume = 0;
+    money total_vol = 0;
     money last_prices = price_2(0, 1);
     money imbalance_integral = 0;
     money APY = 0.0;
