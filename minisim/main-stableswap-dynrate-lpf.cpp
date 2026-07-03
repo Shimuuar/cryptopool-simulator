@@ -425,12 +425,6 @@ struct Trader {
         this->heavy_tx = 0;
         this->light_tx = 0;
         this->t = 0;
-
-        // Initialize variables
-        APY = 0.0;
-        APY_boost = 0.0;
-        APY_boost_2 = 0.0;
-        APR_geo_mean = 0.0;
     }
 
     auto fee_2() {
@@ -532,10 +526,6 @@ struct Trader {
     money boost_min;
     money boost_integral;
     money lp_profit_fraction;
-    long double APY;
-    long double APY_boost;
-    long double APY_boost_2;
-    long double APR_geo_mean;
     bool not_adjusted;
     int  heavy_tx;
     int  light_tx;
@@ -701,6 +691,10 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     money volume = 0;
     money last_prices = price_2(0, 1);
     money imbalance_integral = 0;
+    money APY = 0.0;
+    money APY_boost = 0.0;
+    money APY_boost_2 = 0.0;
+    money APR_geo_mean = 0.0;
     // Moving 1-month window geometric-mean APY tracking
     constexpr u64 TW_APR_SECONDS = 2 * 30 * 86400;  // time window for APR_geo_mean
     constexpr money TW_APR_PER_YEAR = (365.L * 86400.L) / TW_APR_SECONDS;
