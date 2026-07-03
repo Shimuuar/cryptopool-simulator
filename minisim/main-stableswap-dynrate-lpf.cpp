@@ -479,27 +479,23 @@ struct Trader {
         //"""
         //Buy y for x
         //"""
-        try {
-            Tokens x_old;
-            x_old = curve.x;
-            auto x = curve.x[i] + dx;
-            auto y = curve.y_2(x, i, j);
-
-            curve.x[i] = x;
-            curve.x[j] = y;
-            auto fee_mul = 1.L - this->fee_2();
-            auto dy = x_old[j] - y;
-
-            curve.x[j] = x_old[j] - dy * fee_mul;
-            if ((dx / dy) > max_price or dy < 0) {
-                curve.x = x_old;
-                return 0;
-            }
-            update_xcp_2();
-            return dy;
-        } catch (...) {
+        Tokens x_old;
+        x_old = curve.x;
+        auto x = curve.x[i] + dx;
+        auto y = curve.y_2(x, i, j);
+        
+        curve.x[i] = x;
+        curve.x[j] = y;
+        auto fee_mul = 1.L - this->fee_2();
+        auto dy = x_old[j] - y;
+        
+        curve.x[j] = x_old[j] - dy * fee_mul;
+        if ((dx / dy) > max_price or dy < 0) {
+            curve.x = x_old;
             return 0;
         }
+        update_xcp_2();
+        return dy;
     }
 
     void ma_recorder(u64 t, vector<money> const &price_vector) {
