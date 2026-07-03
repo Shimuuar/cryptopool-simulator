@@ -22,7 +22,6 @@ using std::vector, std::string, std::pair, std::sort, std::map, std::min, std::m
 
 using u64 = unsigned long long;
 using money = long double;
-static const int MAX_ARRAY = 3;
 
 struct Prices {
     money px;
