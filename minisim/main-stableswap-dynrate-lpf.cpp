@@ -947,9 +947,8 @@ money Trader::tweak_price_2(u64 t, money spot_prev) {
         auto t = price_oracle[i] / curve.p[i] - 1.L;
         S += t*t;
     }
-    auto norm = S;
-    norm = sqrt(norm); // .root_to();
-    auto _adjustment_step = min(adjustment_step, norm / 5);
+    const money norm = sqrt(S);
+    const money _adjustment_step = min(adjustment_step, norm / 5);
     if (norm <= _adjustment_step) {
         // Already close to the target price
         light_tx += 1;
