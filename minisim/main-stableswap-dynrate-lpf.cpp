@@ -1,3 +1,4 @@
+#include "simulation.hpp"
 #include "sim-threading.hpp"
 #include "sim-util.hpp"
 
@@ -19,36 +20,6 @@
 
 using nlohmann::json;
 using std::vector, std::string, std::pair, std::sort, std::map, std::min, std::max;
-
-using u64 = unsigned long long;
-using money = long double;
-
-struct Prices {
-    money px;
-    money py;
-
-    money operator[](int i) const {
-        if( 0 == i ) return px;
-        if( 1 == i ) return py;
-        abort();
-    }
-};
-
-struct Tokens {
-    money x;
-    money y;
-
-    const money& operator[](int i) const {
-        if( 0 == i ) return x;
-        if( 1 == i ) return y;
-        abort();
-    }
-    money& operator[](int i) {
-        if( 0 == i ) return x;
-        if( 1 == i ) return y;
-        abort();
-    }
-};
 
 
 static void print_clock(string const &mesg, double start, double end) {
