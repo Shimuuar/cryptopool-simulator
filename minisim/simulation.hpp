@@ -88,6 +88,10 @@ public:
 
     money y_2(const AMMState& st, money x, int i, int j) const;
     money p_2(const AMMState& st) const;
+    money price_2(const AMMState& st) const {
+        return p_2(st) * st.price.py;
+    }
+
     money get_xcp_2(const AMMState& st) const;
 private:
     money D_2(const AMMState& st) const;

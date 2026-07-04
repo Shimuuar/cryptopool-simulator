@@ -286,10 +286,6 @@ struct Trader {
         return (mid_fee * f + out_fee * (1.L - f));
     }
 
-    auto price_2() {
-        return curve.p_2(state) * state.price.py;
-    }
-
     money step_for_price_2(money p_min, money p_max, money vol, money ext_vol);
 
     void update_xcp_2(bool only_real=false) {
@@ -525,7 +521,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     money slippage_count = 0;
     money volume = 0;
     money total_vol = 0;
-    money last_prices = price_2();
+    money last_prices = curve.price_2(state);
     money imbalance_integral = 0;
     money APY = 0.0;
     money APY_boost = 0.0;
@@ -568,7 +564,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         auto _high = last;
         auto _low  = last;
 
-        money p_before = price_2();
+        money p_before = curve.price_2(state);
         money p_after  = 0;
         auto apply_tweak_trade = [&]() {
             money ps_before = state.price[1];
@@ -589,12 +585,12 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                     auto dy = exchange_2(step, a, b);
                     vol += step * price_oracle[a];
                     _dx += dy;
-                    last = price_2();
+                    last = curve.price_2(state);
                     ctr += 1;
                 }
             }
             
-            p_after = price_2();
+            p_after = curve.price_2(state);
             
             if (p_before != p_after) {
                 auto v = _dx / (state.xs[b] + state.xs[a] / p_after) * N / 2;
@@ -629,12 +625,12 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                     auto dy = exchange_2(step, b, a);
                     vol += dy * price_oracle[a];
                     _dx += step;
-                    last = price_2();
+                    last = curve.price_2(state);
                     ctr += 1;
                 }
             }
 
-            p_after = price_2();
+            p_after = curve.price_2(state);
 
             if (p_before != p_after) {
                 auto v = _dx / (state.xs[b] + state.xs[a] / p_after) * N / 2;
