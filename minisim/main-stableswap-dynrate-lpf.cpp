@@ -206,7 +206,7 @@ money geometric_mean_2(money const *x) {
     return sqrtl(x[0] * x[1]);
 }
 
-static auto reduction_coefficient_2(money const *x, money gamma) {
+static auto reduction_coefficient_2(const TokensXP &x, money gamma) {
     money K = 1.L;
     money S = 0.L;
     for (size_t i = 0; i < 2; i++) S += x[i]; // = sum(x)
@@ -219,7 +219,7 @@ static auto reduction_coefficient_2(money const *x, money gamma) {
     return K;
 }
 
-auto newton_D_2(money A, money gamma, money const *xx, money D0) {
+auto newton_D_2(money A, money gamma, const TokensXP &xx, money D0) {
     // ***
     // This now uses stableswap invariant (because invariants are pluggable)
     // ***
@@ -247,7 +247,7 @@ auto newton_D_2(money A, money gamma, money const *xx, money D0) {
     throw std::logic_error("Newton_D: did not converge");
 }
 
-auto newton_y(money A, money gamma, money const *x, money D, int i) {
+auto newton_y(money A, money gamma, const TokensXP& x, money D, int i) {
     // ***
     // This now uses stableswap invariant (because invariants are pluggable)
     // ***
@@ -270,7 +270,7 @@ auto newton_y(money A, money gamma, money const *x, money D, int i) {
     throw std::logic_error("Did not converge");
 }
 
-auto get_p_2(money const *x, money D, money A, money gamma) {
+auto get_p_2(const TokensXP& x, money D, money A, money gamma) {
     money ANN = A * 2.;
     money Dr = D / 4.;
     for (size_t idx = 0; idx < 2; ++idx) {
@@ -281,12 +281,12 @@ auto get_p_2(money const *x, money D, money A, money gamma) {
         (xp0_A + Dr * x[0] / x[1]) / (xp0_A + Dr);
 }
 
-money solve_x(money A, money gamma, money const *x, money D, int i) {
+money solve_x(money A, money gamma, const TokensXP& x, money D, int i) {
     return newton_y(A, gamma, x, D, i);
 }
 
-auto solve_D(money A, money gamma, money const *x) {
-    auto D0 = 2 * geometric_mean_2(x); //  # <- fuzz to make sure it's ok XXX
+auto solve_D(money A, money gamma, const TokensXP &x) {
+    auto D0 = 2 * sqrtl(x.x * x.y); //  # <- fuzz to make sure it's ok XXX
     return newton_D_2(A, gamma, x, D0);
 }
 
@@ -301,7 +301,7 @@ struct Curve {
         x.y = D / 2 / p.py;
     }
 
-    auto xp_2(money *ret) const {
+    auto xp_2(TokensXP &ret) const {
         for (int i = 0; i < 2; i++) {
             ret[i] = x[i] * p[i];
             assert(x[i] > 0);
@@ -309,14 +309,14 @@ struct Curve {
     }
 
     auto D_2() const {
-        money xp[2];
+        TokensXP xp;
         this->xp_2(xp);
         auto ret = solve_D(A, gamma, xp);
         return ret;
     }
 
     money y_2(money x, int i, int j) {
-        money xp[2];
+        TokensXP xp;
         this->xp_2(xp);
         xp[i] = x * this->p[i];
         auto yp = solve_x(A, gamma, xp, this->D_2(), j);
@@ -325,7 +325,7 @@ struct Curve {
     }
 
     money p_2() {
-        money xp[2];
+        TokensXP xp;
         this->xp_2(xp);
         auto p = get_p_2(xp, this->D_2(), this->A, this->gamma);
         return p;
@@ -395,7 +395,7 @@ struct Trader {
     }
 
     auto fee_2() {
-        money xp[2];
+        TokensXP xp;
         curve.xp_2(xp);
         auto f = reduction_coefficient_2(xp, fee_gamma);
         return (mid_fee * f + out_fee * (1.L - f));
@@ -804,7 +804,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             last_time_tweak_price = d.t;
         }
 
-        money _xp[2];
+        TokensXP _xp;
         curve.xp_2(_xp);
         money bal_mul = (_xp[0] + _xp[1]);
         money ideal_vp = xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction);
