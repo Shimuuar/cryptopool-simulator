@@ -7,6 +7,7 @@ LDFLAGS  =
 HEADERS  = $(wildcard *.hpp)
 OBJ      = \
 	main-stableswap-dynrate-lpf.cpp.o	\
+	simulation.cpp.o			\
 	sim-threading.cpp.o			\
 	sim-util.cpp.o
 

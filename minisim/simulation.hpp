@@ -78,3 +78,20 @@ struct AMMState {
 };
 
 
+// Definition of curve
+struct Curve {
+    Curve(money _A, money _gamma):
+        A(_A), gamma(_gamma)
+    {}
+
+
+    money D_2(const AMMState& st) const;
+
+    money y_2(const AMMState& st, money x, int i, int j) const;
+
+    money p_2(const AMMState& st) const;
+
+
+    money A;
+    money gamma;
+};
