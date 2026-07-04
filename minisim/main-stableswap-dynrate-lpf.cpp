@@ -244,18 +244,19 @@ struct simulation_data {
 
 struct Trader {
     Trader(json const &jconf, const Prices &p0) :
+        mid_fee(jconf["mid_fee"]),
+        out_fee(jconf["out_fee"]),
+        fee_gamma(jconf["fee_gamma"]),
+        ext_fee(jconf["ext_fee"]),
+        gas_fee(jconf["gas_fee"]),
         curve(jconf["A"], jconf["gamma"]),
         state(jconf["D"], p0)
     {
         money D = jconf["D"];
-        mid_fee = jconf["mid_fee"];
-        out_fee = jconf["out_fee"];
-        fee_gamma = jconf["fee_gamma"];
         adjustment_step = jconf["adjustment_step"];
         allowed_extra_profit = jconf["allowed_extra_profit"];
         ma_half_time = jconf["ma_half_time"];
-        this->ext_fee = jconf["ext_fee"];
-        this->gas_fee = jconf["gas_fee"];
+
         this->boost_rate = jconf["boost_rate"];
         this->boost_mul = jconf["boost_mul"];
         this->boost_min = jconf["boost_min"];
@@ -341,18 +342,18 @@ struct Trader {
     Prices last_price;
     u64 t;
     money dx;
-    money mid_fee;
-    money out_fee;
     money xcp;
     money xcp_profit;
     money xcp_profit_real;
     money adjustment_step;
     money allowed_extra_profit;
     int log;
-    money fee_gamma;
     int ma_half_time;
-    money ext_fee;
-    money gas_fee;
+    const money mid_fee;
+    const money out_fee;
+    const money fee_gamma;
+    const money ext_fee;
+    const money gas_fee;
     money boost_rate;
     money boost_mul;
     money boost_min;
