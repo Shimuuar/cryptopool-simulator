@@ -79,20 +79,19 @@ struct AMMState {
 
 
 // Definition of curve
-struct Curve {
+class Curve {
+public:
     Curve(money _A, money _gamma):
         A(_A), gamma(_gamma)
     {}
 
 
-    money D_2(const AMMState& st) const;
-
     money y_2(const AMMState& st, money x, int i, int j) const;
-
     money p_2(const AMMState& st) const;
-
     money get_xcp_2(const AMMState& st) const;
-
+private:
+    money D_2(const AMMState& st) const;
+public:
     money A;
     money gamma;
 };
