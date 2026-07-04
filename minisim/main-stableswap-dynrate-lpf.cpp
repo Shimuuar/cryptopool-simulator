@@ -303,8 +303,7 @@ struct Trader {
         //"""
         //Buy y for x
         //"""
-        Tokens x_old;
-        x_old = state.xs;
+        Tokens x_old = state.xs;
         auto x = state.xs[i] + dx;
         auto y = curve.y_2(state, x, i, j);
         
@@ -766,10 +765,10 @@ void Trader::tweak_price_2(u64 t, money spot_prev) {
 
     // --- Feed the EMA with the pool's own spot (pre-fee marginal price),
     //     coin0 per coin1, computed at the current state.
-    money amm_p01 = spot_prev;             // dx/dy (coin0 per coin1)
+    const money amm_p01 = spot_prev;             // dx/dy (coin0 per coin1)
     // money amm_p01 = price_2(0, 1);
     // Optional: cap like the real pool (avoid extreme oracle jumps)
-    money capped_p01 = std::min(amm_p01, 2.L * state.price[1]);
+    const money capped_p01 = std::min(amm_p01, 2.L * state.price[1]);
 
     std::vector<money> spot = {1.L, capped_p01};
     ma_recorder(t, spot);
