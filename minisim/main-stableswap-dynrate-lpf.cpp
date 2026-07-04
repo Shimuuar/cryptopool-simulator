@@ -301,14 +301,14 @@ struct Curve {
         x.y = D / 2 / p.py;
     }
 
-    auto xp_2(TokensXP &ret) const {
+    void xp_2(TokensXP &ret) const {
         for (int i = 0; i < 2; i++) {
             ret[i] = x[i] * p[i];
             assert(x[i] > 0);
         }
     }
 
-    auto D_2() const {
+    money D_2() const {
         TokensXP xp;
         this->xp_2(xp);
         auto ret = solve_D(A, gamma, xp);
