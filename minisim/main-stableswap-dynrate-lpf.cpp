@@ -315,7 +315,7 @@ struct Curve {
         return ret;
     }
 
-    money y_2(money x, int i, int j) {
+    money y_2(money x, int i, int j) const {
         TokensXP xp;
         this->xp_2(xp);
         xp[i] = x * this->p[i];
@@ -324,7 +324,7 @@ struct Curve {
         return ret;
     }
 
-    money p_2() {
+    money p_2() const {
         TokensXP xp;
         this->xp_2(xp);
         auto p = get_p_2(xp, this->D_2(), this->A, this->gamma);
