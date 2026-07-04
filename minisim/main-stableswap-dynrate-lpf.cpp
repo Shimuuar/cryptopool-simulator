@@ -34,7 +34,7 @@ struct trade_data {
     money close = 0;   // 4
     money volume = 0;  // 5
     void print() const {
-        printf("{ open: %.6Lf, high: %.6Lf low: %.6Lf close: %.6Lf t: %llu, volume: %.6Lf } ",
+        printf("{ open: %.6Lf, high: %.6Lf low: %.6Lf close: %.6Lf t: %lu, volume: %.6Lf } ",
                this->open, this->high, this->low, this->close, this->t, this->volume);
     }
 };
@@ -837,7 +837,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         }
         if (i % 1024 == 0 && log) {
             try {
-                printf("t=%llu %.1Lf%%\ttrades: %d\tAMM: %.5Lf\tTarget: %.5Lf\tVol: %.4Lf\tPR:%.2Lf\txCP-growth: {%.10Lf}\tAPY:%.1Lf%%\ttw_apr:%.1Lf%%\tfee:%.3Lf%% .\n",
+                printf("t=%lu %.1Lf%%\ttrades: %d\tAMM: %.5Lf\tTarget: %.5Lf\tVol: %.4Lf\tPR:%.2Lf\txCP-growth: {%.10Lf}\tAPY:%.1Lf%%\ttw_apr:%.1Lf%%\tfee:%.3Lf%% .\n",
                        d.t,
                        100.L * i / total_elements,
                        0, // FIXME: kept for keeping golden tests
@@ -855,7 +855,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         }
 
         if (log) {
-            fprintf(out_file, "{\"t\": %llu, \"token0\": %.6Le, \"token1\": %.6Le, \"price_oracle\": %.6Le, \"price_scale\": %.6Le, \"profit\": %.6Le, \"xcp\": %.6Le, \"open\": %.6Le, \"high\": %.6Le, \"low\": %.6Le, \"close\": %.6Le, \"boost_rate\": %.6Le}",
+            fprintf(out_file, "{\"t\": %lu, \"token0\": %.6Le, \"token1\": %.6Le, \"price_oracle\": %.6Le, \"price_scale\": %.6Le, \"profit\": %.6Le, \"xcp\": %.6Le, \"open\": %.6Le, \"high\": %.6Le, \"low\": %.6Le, \"close\": %.6Le, \"boost_rate\": %.6Le}",
                     d.t,
                     curve.x[0],
                     curve.x[1],
