@@ -91,6 +91,7 @@ struct Curve {
 
     money p_2(const AMMState& st) const;
 
+    money get_xcp_2(const AMMState& st) const;
 
     money A;
     money gamma;

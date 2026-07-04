@@ -272,7 +272,7 @@ struct Trader {
         this->dx = D * 1e-8L;
         this->xcp_profit = 1.L;
         this->xcp_profit_real = 1.L;
-        this->xcp = this->get_xcp_2();
+        this->xcp = curve.get_xcp_2(state);
         this->not_adjusted = false;
         this->heavy_tx = 0;
         this->light_tx = 0;
@@ -286,17 +286,6 @@ struct Trader {
         return (mid_fee * f + out_fee * (1.L - f));
     }
 
-    money get_xcp_2() const {
-        // First calculate the ideal balance
-        //  Then calculate, what the constant-product would be
-        auto D = curve.D_2(state);
-        money X[2];
-        for (size_t i = 0; i < 2; i++) {
-            X[i] = D  / (2 * state.price[i]);
-        }
-        return geometric_mean_2(X);
-    }
-
     auto price_2() {
         return curve.p_2(state) * state.price.py;
     }
@@ -304,7 +293,7 @@ struct Trader {
     money step_for_price_2(money p_min, money p_max, money vol, money ext_vol);
 
     void update_xcp_2(bool only_real=false) {
-        auto _xcp = get_xcp_2();
+        auto _xcp = curve.get_xcp_2(state);
         auto old_xcp_profit_real = xcp_profit_real;
         xcp_profit_real = xcp_profit_real * _xcp / xcp;
         if (not only_real) {

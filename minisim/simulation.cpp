@@ -7,6 +7,14 @@ static inline money mabs(money val) noexcept {
     return val >= 0 ? val : -val;
 }
 
+static money geometric_mean_2(money const *x) {
+    return sqrtl(x[0] * x[1]);
+}
+static money geometric_mean_2(const TokensXP &x) {
+    return sqrtl(x[0] * x[1]);
+}
+
+
 static money newton_D_2(money A, money gamma, const TokensXP &xx, money D0) {
     // ***
     // This now uses stableswap invariant (because invariants are pluggable)
@@ -74,7 +82,7 @@ static money solve_x(money A, money gamma, const TokensXP& x, money D, int i) {
 }
 
 static money solve_D(money A, money gamma, const TokensXP &x) {
-    auto D0 = 2 * sqrtl(x.x * x.y); //  # <- fuzz to make sure it's ok XXX
+    auto D0 = 2 * geometric_mean_2(x); //  # <- fuzz to make sure it's ok XXX
     return newton_D_2(A, gamma, x, D0);
 }
 
@@ -101,4 +109,15 @@ money Curve::p_2(const AMMState& st) const {
     st.getXP(xp);
     auto p = get_p_2(xp, this->D_2(st), this->A, this->gamma);
     return p;
+}
+
+money Curve::get_xcp_2(const AMMState& st) const {
+    // First calculate the ideal balance
+    //  Then calculate, what the constant-product would be
+    auto D = D_2(st);
+    money X[2];
+    for (size_t i = 0; i < 2; i++) {
+        X[i] = D  / (2 * st.price[i]);
+    }
+    return geometric_mean_2(X);
 }
