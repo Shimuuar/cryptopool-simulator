@@ -2,6 +2,8 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <cassert>
+
 
 using u64   = uint64_t;
 using money = long double;
@@ -57,8 +59,22 @@ struct TokensXP {
 // State of AMM. It's fully described by amount of tokens and price
 // scale
 struct AMMState {
-    Prices price;
-    Tokens xs;
+    AMMState(money D, const Prices& p) :
+        price(p)
+    {
+        xs.x = D / 2 / price.px;
+        xs.y = D / 2 / price.py;
+    }
+
+    void getXP(TokensXP &ret) const {
+        for (int i = 0; i < 2; i++) {
+            ret[i] = xs[i] * price[i];
+            assert(xs[i] > 0);
+        }
+    }
+    
+    Prices price; // Price scale for AMM
+    Tokens xs;    // Amount of tokens in AMM
 };
 
 
