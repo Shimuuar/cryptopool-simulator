@@ -365,7 +365,7 @@ struct Trader {
     bool not_adjusted;
     int  heavy_tx;
     int  light_tx;
-    Curve    curve;
+    const Curve curve;
     AMMState state;
 };
 
