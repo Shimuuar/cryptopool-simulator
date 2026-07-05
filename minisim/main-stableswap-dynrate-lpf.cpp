@@ -668,11 +668,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         //
         // FIXME: Contrary to comment we only tweak price on trade
         if (d.t - last_time_tweak_price >= 3600) {
-            money previous_price_scale = state.price[1];
-            money cur_get_p = curve.p_2(state);
-            tweak_price_2(d.t, last_prices);
-            last_prices = cur_get_p * previous_price_scale;
-            last_time_tweak_price = d.t;
+            apply_tweak_trade();
         }
 
         TokensXP _xp;
