@@ -606,8 +606,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             _high = last;
             
             if (ctr > 0) {
-                if (_low == 0)
-                    _low = last;
                 apply_tweak_trade();
             }
         }
