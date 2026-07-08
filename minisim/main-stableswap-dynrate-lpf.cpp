@@ -509,7 +509,6 @@ money Trader::step_for_price_2(money p_min, money p_max, money vol, money ext_vo
 
 void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     size_t N = 2;
-    long double last_time = 0;
     long double last_time_tweak_price = 0;
     const size_t total_elements = simdata->test_data->size();
     const trade_data* mapped_data = simdata->test_data->array();
@@ -549,14 +548,15 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     const u64 start_t = mapped_data[0].t;
 
     for (size_t i = 0; i < total_elements; i++) {
+        long double last_time = 0;
         trade_data d = mapped_data[i];
 
         if (i == 0) {
             last_time_tweak_price = d.t;
             this->t = d.t;
         }
-        if (last_time > 0) {
-            last_time = d.t - last_time;
+        if( i > 0 ) {
+            last_time = d.t - mapped_data[i-1].t;
         }
 
         money vol     = 0.0L;
@@ -686,7 +686,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
 
         total_vol += vol;
         imbalance_integral += (1.L - bal_mul) * last_time;  // last_time is dt here
-        last_time = d.t;
         long double ARU_x = ideal_vp;
         long double ARU_y = (86400.L * 365.L / (d.t - start_t + 1.L));
         APY = powl(ARU_x, ARU_y) - 1.L;
