@@ -576,19 +576,16 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
 
         {
             const money max_price = d.high * (1 - ext_fee);
-            money _slippage = 0;
-            money _dx = 0;
             if ((max_price != 0) & (max_price > p_before)) {
                 auto step = step_for_price_2(0, max_price, vol, ext_vol);
                 if (step > 0) {
-                    auto dy = exchange_2(step, a, b);
+                    const money dy = exchange_2(step, a, b);
                     vol += step * price_oracle[a];
-                    _dx += dy;
-                    last = curve.price_2(state);
-                    p_after = curve.price_2(state);
-                    auto v = _dx / (state.xs[b] + state.xs[a] / p_after) * N / 2;
-                    _slippage = (_dx * (p_before + p_after)) / (2.L * (mabs(p_before - p_after)) * state.xs[b]);
-                    volume += v;
+                    const money _dx = dy;
+                    last    = curve.price_2(state);
+                    p_after = last;
+                    volume += _dx / (state.xs[b] + state.xs[a] / p_after) * N / 2;
+                    const money _slippage = (_dx * (p_before + p_after)) / (2.L * (mabs(p_before - p_after)) * state.xs[b]);
                     if (_slippage > 1e-10) {
                         slippage_count += last_time;
                         antislippage   += last_time * _slippage;
@@ -603,21 +600,18 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
 
         {
             const money min_price = d.low  * (1 + ext_fee);
-            money _slippage = 0;
-            money _dx = 0;
             p_before = p_after;
 
             if ((min_price != 0) && (min_price < p_before)) {
                 auto step = step_for_price_2(min_price, 0, vol, ext_vol);
                 if (step > 0) {
-                    auto dy = exchange_2(step, b, a);
+                    const money dy = exchange_2(step, b, a);
                     vol += dy * price_oracle[a];
-                    _dx += step;
-                    last = curve.price_2(state);
-                    p_after = curve.price_2(state);
-                    auto v = _dx / (state.xs[b] + state.xs[a] / p_after) * N / 2;
-                    _slippage = (_dx * (p_before + p_after)) / (2.L * (mabs(p_before - p_after)) * state.xs[b]);
-                    volume += v;
+                    const money _dx = step;
+                    last    = curve.price_2(state);
+                    p_after = last;
+                    volume += _dx / (state.xs[b] + state.xs[a] / p_after) * N / 2;
+                    const money _slippage = (_dx * (p_before + p_after)) / (2.L * (mabs(p_before - p_after)) * state.xs[b]);
                     if (_slippage > 1e-10) {
                         slippage_count += last_time;
                         antislippage += last_time * _slippage;
