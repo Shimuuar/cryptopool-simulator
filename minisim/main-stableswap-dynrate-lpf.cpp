@@ -319,7 +319,7 @@ struct Trader {
         return dy;
     }
 
-    void ma_recorder(u64 t, vector<money> const &price_vector) {
+    void ma_recorder(u64 t, const Prices &price_vector) {
         //  XXX what if every block only has p_b being last
         if (t > this->t) {
             money alpha = powl(0.5, ((money)(t - this->t) / this->ma_half_time));
@@ -331,7 +331,6 @@ struct Trader {
     }
 
     void tweak_price_2(u64 t, money spot_prev);
-
 
     void simulate(simulation_data *simdata, extra_data *extdata);
 
@@ -735,7 +734,7 @@ void Trader::tweak_price_2(u64 t, money spot_prev) {
     // Optional: cap like the real pool (avoid extreme oracle jumps)
     const money capped_p01 = std::min(amm_p01, 2.L * state.price[1]);
 
-    std::vector<money> spot = {1.L, capped_p01};
+    const Prices spot = {1.L, capped_p01};
     ma_recorder(t, spot);
 
 
