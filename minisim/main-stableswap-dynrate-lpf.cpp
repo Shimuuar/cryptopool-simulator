@@ -630,7 +630,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             state.xs[0] = state.xs[0] * _boost;
             state.xs[1] = state.xs[1] * _boost;
             xcp_profit_real *= _boost;
-            xcp *= _boost;
+            xcp             *= _boost;
             this->boost_integral *= _boost;
         }
 
@@ -643,19 +643,19 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
 
         TokensXP _xp;
         state.getXP(_xp);
-        money bal_mul = (_xp[0] + _xp[1]);
         money ideal_vp = xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction);
+        money bal_mul = (_xp[0] + _xp[1]);
         bal_mul = 4 * _xp[0] * _xp[1] / (bal_mul * bal_mul);
         // xcp_profit_real_adj *= (ideal_vp / xcp_profit_real_prev - 1.L) * bal_mul * bal_mul + 1.L;
         xcp_profit_real_adj *= (ideal_vp / xcp_profit_real_prev);
         xcp_profit_real_prev = ideal_vp;
 
-        total_vol += vol;
+        total_vol          += vol;
         imbalance_integral += (1.L - bal_mul) * last_time;  // last_time is dt here
         long double ARU_x = ideal_vp;
         long double ARU_y = (86400.L * 365.L / (d.t - start_t + 1.L));
-        APY = powl(ARU_x, ARU_y) - 1.L;
-        APY_boost = powl(ideal_vp / this->boost_integral, ARU_y) - 1.L;
+        APY         = powl(ARU_x, ARU_y) - 1.L;
+        APY_boost   = powl(ideal_vp            / this->boost_integral, ARU_y) - 1.L;
         APY_boost_2 = powl(xcp_profit_real_adj / this->boost_integral, ARU_y) - 1.L;
         // Moving 1-month window geometric-mean APR
         xcp_history.push_back({d.t, xcp_profit_real_adj / this->boost_integral});
