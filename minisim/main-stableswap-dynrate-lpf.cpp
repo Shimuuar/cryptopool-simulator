@@ -275,8 +275,6 @@ struct Trader {
         this->xcp_profit_real = 1.L;
         this->xcp = curve.get_xcp_2(state);
         this->not_adjusted = false;
-        this->heavy_tx = 0;
-        this->light_tx = 0;
         this->t = 0;
     }
 
@@ -359,8 +357,6 @@ struct Trader {
     money boost_integral;
     money lp_profit_fraction;
     bool not_adjusted;
-    int  heavy_tx;
-    int  light_tx;
     const Curve curve;
     AMMState state;
 };
@@ -753,17 +749,14 @@ void Trader::tweak_price_2(u64 t, money spot_prev) {
     const money _adjustment_step = min(adjustment_step, norm / 5);
     if (norm <= _adjustment_step) {
         // Already close to the target price
-        light_tx += 1;
         return;
     }
     if (not not_adjusted and (xcp_profit_real > xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction) + allowed_extra_profit)) {
         not_adjusted = true;
     }
     if (not not_adjusted) {
-        light_tx += 1;
         return;
     }
-    heavy_tx += 1;
 
     Prices p_new;
     p_new.px = 1.L;
