@@ -787,8 +787,6 @@ void Trader::tweak_price_2(u64 t, money spot_prev) {
         xcp_profit_real = old_profit;
         xcp = old_xcp;
         not_adjusted = false;
-        // auto val = ((xcp_profit_real - 1.L - (xcp_profit - 1.L) / 2.L));
-        // printf("%.10Lf\n", val);
     }
 }
 
