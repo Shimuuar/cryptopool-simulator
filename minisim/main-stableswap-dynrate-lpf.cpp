@@ -764,16 +764,12 @@ void Trader::tweak_price_2(AMMState& state, u64 t, money spot_prev) {
     }
 
     AMMState old_state = state;
-    Prices p_new;
-    p_new.px = 1.L;
     {
         auto p_target = state.price.py;
         auto p_real = price_oracle[1];
-        p_new.py = p_target + _adjustment_step * (p_real - p_target) / norm;
+        state.price.py = p_target + _adjustment_step * (p_real - p_target) / norm;
     }
     auto old_profit = xcp_profit_real;
-
-    state.price = p_new;
     update_xcp_2(state, true);
 
     if (xcp_profit_real <= xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction)) {
