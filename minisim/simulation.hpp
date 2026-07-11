@@ -64,6 +64,7 @@ struct AMMState {
     {
         xs.x = D / 2 / price.px;
         xs.y = D / 2 / price.py;
+        xcp  = 0; // FIXME: Proper init.For now we hack around it
     }
 
     void getXP(TokensXP &ret) const {
@@ -75,6 +76,7 @@ struct AMMState {
     
     Prices price; // Price scale for AMM
     Tokens xs;    // Amount of tokens in AMM
+    money  xcp;
 };
 
 

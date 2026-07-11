@@ -273,7 +273,6 @@ struct Trader {
         this->dx = D * 1e-8L;
         this->xcp_profit = 1.L;
         this->xcp_profit_real = 1.L;
-        this->xcp = curve.get_xcp_2(state0);
         this->not_adjusted = false;
         this->t = 0;
     }
@@ -287,14 +286,14 @@ struct Trader {
 
     money step_for_price_2(AMMState& state, money p_min, money p_max, money vol, money ext_vol);
 
-    void update_xcp_2(const AMMState& state, bool only_real=false) {
-        auto _xcp = curve.get_xcp_2(state);
+    void update_xcp_2(AMMState& state, bool only_real=false) {
+        money old_xcp = state.xcp;
+        state.xcp     = curve.get_xcp_2(state);
         auto old_xcp_profit_real = xcp_profit_real;
-        xcp_profit_real = xcp_profit_real * _xcp / xcp;
+        xcp_profit_real = xcp_profit_real * state.xcp / old_xcp;
         if (not only_real) {
             xcp_profit += xcp_profit_real - old_xcp_profit_real;
         }
-        xcp = _xcp;
     }
 
     money exchange_2(AMMState& state, money dx, int i, int j, money max_price=1e100L) {
@@ -338,7 +337,6 @@ struct Trader {
     Prices last_price;
     u64 t;
     money dx;
-    money xcp;
     money xcp_profit;
     money xcp_profit_real;
     money adjustment_step;
@@ -516,6 +514,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     money volume = 0;
     money total_vol = 0;
     AMMState state = state0;
+    state.xcp = curve.get_xcp_2(state);
     money last_prices = curve.price_2(state);
     money imbalance_integral = 0;
     money APY = 0.0;
@@ -635,8 +634,8 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             auto _boost = (1.L + last_time * local_boost_rate);
             state.xs[0] = state.xs[0] * _boost;
             state.xs[1] = state.xs[1] * _boost;
+            state.xcp       *= _boost;
             xcp_profit_real *= _boost;
-            xcp             *= _boost;
             this->boost_integral *= _boost;
         }
 
@@ -764,6 +763,7 @@ void Trader::tweak_price_2(AMMState& state, u64 t, money spot_prev) {
         return;
     }
 
+    AMMState old_state = state;
     Prices p_new;
     p_new.px = 1.L;
     {
@@ -771,20 +771,15 @@ void Trader::tweak_price_2(AMMState& state, u64 t, money spot_prev) {
         auto p_real = price_oracle[1];
         p_new.py = p_target + _adjustment_step * (p_real - p_target) / norm;
     }
-    Prices old_p;
-    old_p = state.price;
-
     auto old_profit = xcp_profit_real;
-    auto old_xcp = xcp;
 
     state.price = p_new;
     update_xcp_2(state, true);
 
     if (xcp_profit_real <= xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction)) {
         //  If real profit is less than equilibrium - revert params back
-        state.price = old_p;
+        state = old_state;
         xcp_profit_real = old_profit;
-        xcp = old_xcp;
         not_adjusted = false;
     }
 }
