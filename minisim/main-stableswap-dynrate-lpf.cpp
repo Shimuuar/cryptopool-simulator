@@ -560,7 +560,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         auto _high = last;
         auto _low  = last;
 
-        money p_before = curve.price_2(state.amm);
+        money p_before = state.price;
         money p_after  = p_before;
         auto apply_tweak_trade = [&](const FullAMMState& oldst, FullAMMState& st) {
             money ps_before = st.amm.price[1];
@@ -582,7 +582,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                     const money dy = exchange_2(state, state1_0, step, a, b);
                     vol += step * price_oracle[a];
                     const money _dx = dy;
-                    last    = curve.price_2(state1_0.amm);
+                    last    = state1_0.price;
                     p_after = last;
                     volume += _dx / (state1_0.amm.xs[b] + state1_0.amm.xs[a] / p_after) * N / 2;
                     const money _slippage = (_dx * (p_before + p_after)) / (2.L * (mabs(p_before - p_after)) * state1_0.amm.xs[b]);
@@ -613,7 +613,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                     const money dy = exchange_2(state1, state2_0, step, b, a);
                     vol += dy * price_oracle[a];
                     const money _dx = step;
-                    last    = curve.price_2(state2_0.amm);
+                    last    = state2_0.price;
                     p_after = last;
                     volume += _dx / (state2_0.amm.xs[b] + state2_0.amm.xs[a] / p_after) * N / 2;
                     const money _slippage = (_dx * (p_before + p_after)) / (2.L * (mabs(p_before - p_after)) * state2_0.amm.xs[b]);
@@ -641,7 +641,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             auto _boost = (1.L + last_time * local_boost_rate);
             state.amm.xs[0] = state.amm.xs[0] * _boost;
             state.amm.xs[1] = state.amm.xs[1] * _boost;
-            state.xcp       *= _boost;
+            state.compute(curve);
             xcp_profit_real *= _boost;
             this->boost_integral *= _boost;
         }

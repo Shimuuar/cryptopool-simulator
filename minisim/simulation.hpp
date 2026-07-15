@@ -84,6 +84,7 @@ struct AMMState {
 struct FullAMMState {
     AMMState amm;
     money    xcp;
+    money    price;
 
     void compute(const Curve& curve);
 };

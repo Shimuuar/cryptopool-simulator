@@ -123,5 +123,6 @@ money Curve::get_xcp_2(const AMMState& st) const {
 }
 
 void FullAMMState::compute(const Curve& curve) {
-    xcp = curve.get_xcp_2(amm);
+    xcp   = curve.get_xcp_2(amm);
+    price = curve.price_2(amm);
 }
