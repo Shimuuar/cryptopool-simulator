@@ -56,6 +56,8 @@ struct TokensXP {
     }
 };
 
+class Curve;
+
 // State of AMM. It's fully described by amount of tokens and price
 // scale
 struct AMMState {
@@ -82,6 +84,8 @@ struct AMMState {
 struct FullAMMState {
     AMMState amm;
     money    xcp;
+
+    void compute(const Curve& curve);
 };
 
 

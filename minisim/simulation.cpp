@@ -121,3 +121,7 @@ money Curve::get_xcp_2(const AMMState& st) const {
     }
     return geometric_mean_2(X);
 }
+
+void FullAMMState::compute(const Curve& curve) {
+    xcp = curve.get_xcp_2(amm);
+}
