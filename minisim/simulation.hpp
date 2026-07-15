@@ -59,12 +59,12 @@ struct TokensXP {
 // State of AMM. It's fully described by amount of tokens and price
 // scale
 struct AMMState {
+    AMMState() = default; // Hack
     AMMState(money D, const Prices& p) :
         price(p)
     {
         xs.x = D / 2 / price.px;
         xs.y = D / 2 / price.py;
-        xcp  = 0; // FIXME: Proper init.For now we hack around it
     }
 
     void getXP(TokensXP &ret) const {
@@ -76,7 +76,12 @@ struct AMMState {
     
     Prices price; // Price scale for AMM
     Tokens xs;    // Amount of tokens in AMM
-    money  xcp;
+};
+
+// AMM state with some values cached
+struct FullAMMState {
+    AMMState amm;
+    money    xcp;
 };
 
 
