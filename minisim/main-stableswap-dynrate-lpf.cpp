@@ -560,8 +560,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         auto _high = last;
         auto _low  = last;
 
-        money p_before = state.price;
-        money p_after  = p_before;
         auto apply_tweak_trade = [&](const FullAMMState& oldst, FullAMMState& st) {
             money ps_before = st.amm.price[1];
             money cur_get_p = curve.p_2(st.amm);
@@ -575,14 +573,16 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         FullAMMState state1price = state; // State after price tweak
         {
             const money max_price = d.high * (1 - ext_fee);
-            if ((max_price != 0) & (max_price > p_before)) {
+            if ((max_price != 0) & (max_price > state.price)) {
                 auto step = step_for_price_2(state1exch.amm, 0, max_price, vol, ext_vol);
                 if (step > 0) {
                     const money dy = exchange_2(state, state1exch, step, a, b);
                     vol += step * price_oracle[a];
                     const money _dx = dy;
                     last    = state1exch.price;
-                    p_after = last;
+                    const money p_before = state.price;
+                    const money p_after  = state1exch.price;
+
                     volume += _dx / (state1exch.amm.xs[b] + state1exch.amm.xs[a] / p_after) * N / 2;
                     const money _slippage = (_dx * (p_before + p_after)) / (2.L * (mabs(p_before - p_after)) * state1exch.amm.xs[b]);
                     if (_slippage > 1e-10) {
@@ -604,16 +604,16 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         FullAMMState state2price = state1price;
         {
             const money min_price = d.low  * (1 + ext_fee);
-            p_before = p_after;
-
-            if ((min_price != 0) && (min_price < p_before)) {
+            if ((min_price != 0) && (min_price < state1exch.price)) {
                 auto step = step_for_price_2(state2exch.amm, min_price, 0, vol, ext_vol);
                 if (step > 0) {
                     const money dy = exchange_2(state1price, state2exch, step, b, a);
                     vol += dy * price_oracle[a];
                     const money _dx = step;
-                    last    = state2exch.price;
-                    p_after = last;
+                    last = state2exch.price;
+
+                    const money p_before = state1exch.price;
+                    const money p_after  = state2exch.price;
                     volume += _dx / (state2exch.amm.xs[b] + state2exch.amm.xs[a] / p_after) * N / 2;
                     const money _slippage = (_dx * (p_before + p_after)) / (2.L * (mabs(p_before - p_after)) * state2exch.amm.xs[b]);
                     if (_slippage > 1e-10) {
