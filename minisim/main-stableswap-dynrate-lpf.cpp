@@ -284,7 +284,7 @@ struct Trader {
         return (mid_fee * f + out_fee * (1.L - f));
     }
 
-    money step_for_price_2(AMMState& state, money p_min, money p_max, money vol, money ext_vol);
+    money step_for_price_2(const AMMState& state, money p_min, money p_max, money vol, money ext_vol);
 
     void update_xcp_2(const FullAMMState& oldstate, FullAMMState& state, bool only_real=false) {
         money old_xcp_profit_real = xcp_profit_real;
@@ -358,9 +358,9 @@ struct Trader {
     AMMState state0;
 };
 
-money Trader::step_for_price_2(AMMState& state, money p_min, money p_max, money vol, money ext_vol) {
-    Tokens x0;
-    x0 = state.xs;
+money Trader::step_for_price_2(const AMMState& state0, money p_min, money p_max, money vol, money ext_vol) {
+    AMMState state = state0;
+    Tokens x0 = state.xs;
     money _dx = 0;
     money _dy = 0;
     money x = 0;
@@ -401,14 +401,12 @@ money Trader::step_for_price_2(AMMState& state, money p_min, money p_max, money 
         // price in units d_first / d_second
         if (_from == 0) {
             price = _dx / _dy;
-        }
-        else {
+        } else {
             price = _dy / _dx;
         }
         auto v = vol + _dy * state.price[_to];
 
         state.xs = x0;  // restore the state
-        // printf("::: %Lf %Lf %Lf %Lf\n", price, inst_price, p_min, p_max);
 
         // _from == p.first - buy
         // _from != p.first - sell
@@ -427,7 +425,6 @@ money Trader::step_for_price_2(AMMState& state, money p_min, money p_max, money 
             _dy = _dy_prev;
             break;
         }
-
         step += step;
     }
 
@@ -463,9 +460,7 @@ money Trader::step_for_price_2(AMMState& state, money p_min, money p_max, money 
                 price = _dy / _dx;
             }
             auto v = vol + _dy * state.price[_to];
-
             state.xs = x0;  // restore the state
-
 
             // _from == p.first - buy
             // _from != p.first - sell
@@ -484,7 +479,6 @@ money Trader::step_for_price_2(AMMState& state, money p_min, money p_max, money 
             }
         }
     }
-    // printf("*** p_min=%Lf, p_max=%Lf, _dy=%Lf, y=%Lf\n", p_min, p_max, _dy, state.xs[_to]);
 
     if (_from == 0) {
         price = (_dx + gas) / _dy;  // need to buy higher than without gas
