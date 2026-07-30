@@ -1,9 +1,13 @@
 #pragma once
-
+// General API for writing arbitrage-based simulators for AMM This
+// header contain data structures and primitives for writing
+// simulators but no simulator itself.
 #include <stdint.h>
 #include <stdlib.h>
 #include <cassert>
 #include <iosfwd>
+
+
 
 
 using u64   = uint64_t;
