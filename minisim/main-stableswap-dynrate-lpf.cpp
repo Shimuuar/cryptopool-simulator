@@ -557,8 +557,8 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
 
         money vol     = 0.0L;
         const money ext_vol = money(d.volume * price_oracle[b]); //  <- now all is in USD
-        auto _high = last;
-        auto _low  = last;
+        money       _high = last;
+        const money _low  = last;
 
         auto apply_tweak_trade = [&](const FullAMMState& oldst, FullAMMState& st) {
             money ps_before = st.amm.price[1];
