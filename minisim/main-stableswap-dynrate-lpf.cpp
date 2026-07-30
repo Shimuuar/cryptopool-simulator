@@ -294,7 +294,7 @@ struct Trader {
         }
     }
 
-    money exchange_2(const FullAMMState& oldstate, FullAMMState& state, money dx, int i, int j, money max_price=1e100L) {
+    money exchange_2(const FullAMMState& oldstate, FullAMMState& state, money dx, int i, int j) {
         //"""
         //Buy y for x
         //"""
@@ -308,7 +308,7 @@ struct Trader {
         auto dy = x_old[j] - y;
 
         state.amm.xs[j] = x_old[j] - dy * fee_mul;
-        if ((dx / dy) > max_price or dy < 0) {
+        if(dy < 0) {
             state.amm.xs = x_old;
             return 0;
         }
