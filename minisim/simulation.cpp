@@ -2,6 +2,7 @@
 #include "simulation.hpp"
 #include <stdexcept>
 #include <cmath>
+#include <iostream>
 
 static inline money mabs(money val) noexcept {
     return val >= 0 ? val : -val;
@@ -120,4 +121,70 @@ money Curve::get_xcp_2(const AMMState& st) const {
         X[i] = D  / (2 * st.price[i]);
     }
     return geometric_mean_2(X);
+}
+
+
+AMMState AMMState::applyTrade(const Trade& trade) const {
+    AMMState amm(*this);
+    amm.xs[trade.i_buy]  += trade.buy;
+    amm.xs[trade.i_sell] -= trade.sell;
+    return amm;
+}
+
+void FullAMMState::compute(const Curve& curve) {
+    xcp   = curve.get_xcp_2(amm);
+    price = curve.price_2(amm);
+}
+
+FullAMMState FullAMMState::applyTrade(const Trade& trade, const Curve& curve) const {
+    FullAMMState st;
+    st.amm = this->amm.applyTrade(trade);
+    st.compute(curve);
+    return st;
+}
+
+
+
+Trade::Trade(Trade::Dir      trade,
+             money           amount,
+             int             ibuy,
+             int             isell,
+             const AMMState& amm,
+             const Curve&    curve
+    )
+{
+    i_buy  = ibuy;
+    i_sell = isell;
+    if( trade == Trade::BUY ) {
+        buy  = amount;
+        sell = amm.xs[i_sell] - curve.y_2(amm, amm.xs[i_buy] + buy, i_buy, i_sell);
+    } else {
+        sell = -amount;
+        buy  = amm.xs[i_buy] - curve.y_2(amm, amm.xs[i_sell] + sell, i_sell, i_buy);
+    }
+}
+
+Trade Trade::applyFee(money fee) const {
+    Trade t(*this);
+    t.sell *= 1 - fee;
+    return t;
+}
+
+
+std::ostream& operator<<(std::ostream& o, const Tokens& tok) {
+    o << '[' << tok.x << ", " << tok.y << ']';
+    return o;
+}
+std::ostream& operator<<(std::ostream& o, const Prices& p) {
+    o << '[' << p.px << ", " << p.py << ']';
+    return o;
+}
+
+std::ostream& operator<<(std::ostream& o, const AMMState& amm) {
+    o << "AMM{p="<<amm.price<< ", x="<<amm.xs<<"}";
+    return o;
+}
+std::ostream& operator<<(std::ostream& o, const Trade& t) {
+    o << "Trade{buy="<<t.buy<< ", sell="<<t.sell<<", i_buy="<<t.i_buy<<", i_sell="<<t.i_sell<<"}";
+    return o;
 }

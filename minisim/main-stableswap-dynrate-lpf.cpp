@@ -146,7 +146,7 @@ TradeDataArray* get_all(json const &jin, int last_elems, Prices& price_vector) {
     string name = jin["datafile"][0];
     all_trades = get_data(name);
     printf("using file '%s'\n", name.c_str());
-    
+
     u64 min_time = 1ull << 63;
     u64 max_time = 0;
     for (auto const &t: all_trades) {
@@ -159,7 +159,7 @@ TradeDataArray* get_all(json const &jin, int last_elems, Prices& price_vector) {
         if (trade.t >= min_time && trade.t <= max_time) {
             trade_data trade_min;
             trade_data trade_max;
-            
+
             // (1, 2) min
             // (0, 2) min
             // (0, 1) min
@@ -173,7 +173,7 @@ TradeDataArray* get_all(json const &jin, int last_elems, Prices& price_vector) {
             // no halving here - volumes are later halved in decision-making
             trade_min.volume = trade.volume;
             trade_max.volume = trade.volume;
-            
+
             if (mabs(trade.open - trade.low) + mabs(trade.close - trade.high) < mabs(trade.open - trade.high) + mabs(trade.close - trade.low)) {
                 trade_min.high = trade.low;
                 trade_min.low = trade.low;
@@ -189,7 +189,7 @@ TradeDataArray* get_all(json const &jin, int last_elems, Prices& price_vector) {
                 trade_max.high = trade.low;
                 trade_max.low = trade.low;
             }
-            
+
             out.push_back(trade_min);
             out.push_back(trade_max);
         }
@@ -273,50 +273,30 @@ struct Trader {
         this->dx = D * 1e-8L;
         this->xcp_profit = 1.L;
         this->xcp_profit_real = 1.L;
-        this->xcp = curve.get_xcp_2(state0);
         this->not_adjusted = false;
         this->t = 0;
     }
 
-    auto fee_2(const AMMState& state) {
+    money compute_fee(const AMMState& state) {
         TokensXP xp;
         state.getXP(xp);
         auto f = reduction_coefficient_2(xp, fee_gamma);
         return (mid_fee * f + out_fee * (1.L - f));
     }
 
-    money step_for_price_2(AMMState& state, money p_min, money p_max, money vol, money ext_vol);
+    money compute_fee(const AMMState& state, const Trade& trade) {
+        AMMState st = state.applyTrade(trade);
+        return compute_fee(st);
+    }
 
-    void update_xcp_2(const AMMState& state, bool only_real=false) {
-        auto _xcp = curve.get_xcp_2(state);
-        auto old_xcp_profit_real = xcp_profit_real;
-        xcp_profit_real = xcp_profit_real * _xcp / xcp;
+    money step_for_price_2(const AMMState& state, money p_min, money p_max, money vol, money ext_vol);
+
+    void update_xcp_2(const FullAMMState& oldstate, FullAMMState& state, bool only_real=false) {
+        money old_xcp_profit_real = xcp_profit_real;
+        xcp_profit_real = xcp_profit_real * state.xcp / oldstate.xcp;
         if (not only_real) {
             xcp_profit += xcp_profit_real - old_xcp_profit_real;
         }
-        xcp = _xcp;
-    }
-
-    money exchange_2(AMMState& state, money dx, int i, int j, money max_price=1e100L) {
-        //"""
-        //Buy y for x
-        //"""
-        Tokens x_old = state.xs;
-        auto x = state.xs[i] + dx;
-        auto y = curve.y_2(state, x, i, j);
-        
-        state.xs[i] = x;
-        state.xs[j] = y;
-        auto fee_mul = 1.L - this->fee_2(state);
-        auto dy = x_old[j] - y;
-        
-        state.xs[j] = x_old[j] - dy * fee_mul;
-        if ((dx / dy) > max_price or dy < 0) {
-            state.xs = x_old;
-            return 0;
-        }
-        update_xcp_2(state);
-        return dy;
     }
 
     void ma_recorder(u64 t, const Prices &price_vector) {
@@ -330,7 +310,7 @@ struct Trader {
         }
     }
 
-    void tweak_price_2(AMMState& state, u64 t, money spot_prev);
+    void tweak_price_2(const FullAMMState& oldstate, FullAMMState& state, u64 t, money spot_prev);
 
     void simulate(simulation_data *simdata, extra_data *extdata);
 
@@ -338,7 +318,6 @@ struct Trader {
     Prices last_price;
     u64 t;
     money dx;
-    money xcp;
     money xcp_profit;
     money xcp_profit_real;
     money adjustment_step;
@@ -360,9 +339,9 @@ struct Trader {
     AMMState state0;
 };
 
-money Trader::step_for_price_2(AMMState& state, money p_min, money p_max, money vol, money ext_vol) {
-    Tokens x0;
-    x0 = state.xs;
+money Trader::step_for_price_2(const AMMState& state0, money p_min, money p_max, money vol, money ext_vol) {
+    AMMState state = state0;
+    Tokens x0 = state.xs;
     money _dx = 0;
     money _dy = 0;
     money x = 0;
@@ -395,7 +374,7 @@ money Trader::step_for_price_2(AMMState& state, money p_min, money p_max, money 
 
         state.xs[_from] = x;
         state.xs[_to] = y;
-        auto fee_mul = 1.L - this->fee_2(state);
+        auto fee_mul = 1.L - this->compute_fee(state);
 
         _dy = (x0[_to] - y) * fee_mul;
         state.xs[_to] = x0[_to] - _dy;
@@ -403,14 +382,12 @@ money Trader::step_for_price_2(AMMState& state, money p_min, money p_max, money 
         // price in units d_first / d_second
         if (_from == 0) {
             price = _dx / _dy;
-        }
-        else {
+        } else {
             price = _dy / _dx;
         }
         auto v = vol + _dy * state.price[_to];
 
         state.xs = x0;  // restore the state
-        // printf("::: %Lf %Lf %Lf %Lf\n", price, inst_price, p_min, p_max);
 
         // _from == p.first - buy
         // _from != p.first - sell
@@ -429,7 +406,6 @@ money Trader::step_for_price_2(AMMState& state, money p_min, money p_max, money 
             _dy = _dy_prev;
             break;
         }
-
         step += step;
     }
 
@@ -453,7 +429,7 @@ money Trader::step_for_price_2(AMMState& state, money p_min, money p_max, money 
 
             state.xs[_from] = x;
             state.xs[_to] = y;
-            auto fee_mul = 1.L - this->fee_2(state);
+            auto fee_mul = 1.L - this->compute_fee(state);
 
             _dy = (x0[_to] - y) * fee_mul;
             state.xs[_to] = x0[_to] - _dy;
@@ -465,9 +441,7 @@ money Trader::step_for_price_2(AMMState& state, money p_min, money p_max, money 
                 price = _dy / _dx;
             }
             auto v = vol + _dy * state.price[_to];
-
             state.xs = x0;  // restore the state
-
 
             // _from == p.first - buy
             // _from != p.first - sell
@@ -486,7 +460,6 @@ money Trader::step_for_price_2(AMMState& state, money p_min, money p_max, money 
             }
         }
     }
-    // printf("*** p_min=%Lf, p_max=%Lf, _dy=%Lf, y=%Lf\n", p_min, p_max, _dy, state.xs[_to]);
 
     if (_from == 0) {
         price = (_dx + gas) / _dy;  // need to buy higher than without gas
@@ -515,8 +488,10 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     money slippage_count = 0;
     money volume = 0;
     money total_vol = 0;
-    AMMState state = state0;
-    money last_prices = curve.price_2(state);
+    FullAMMState state;
+    state.amm = state0;
+    state.xcp = curve.get_xcp_2(state.amm);
+    money last_prices = curve.price_2(state.amm);
     money imbalance_integral = 0;
     money APY = 0.0;
     money APY_boost = 0.0;
@@ -557,80 +532,109 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
 
         money vol     = 0.0L;
         const money ext_vol = money(d.volume * price_oracle[b]); //  <- now all is in USD
-        auto _high = last;
-        auto _low  = last;
+        money       _high = last;
+        const money _low  = last;
 
-        money p_before = curve.price_2(state);
-        money p_after  = p_before;
-        auto apply_tweak_trade = [&]() {
-            money ps_before = state.price[1];
-            money cur_get_p = curve.p_2(state);
-            tweak_price_2(state, d.t, last_prices);
+        auto apply_tweak_trade = [&](const FullAMMState& oldst, FullAMMState& st) {
+            money ps_before = st.amm.price[1];
+            money cur_get_p = curve.p_2(st.amm);
+            tweak_price_2(oldst, st, d.t, last_prices);
             last_prices = cur_get_p * ps_before;
             last_time_tweak_price = d.t;
         };
 
+        // ==== Trade 1 ====
+        FullAMMState state1exch  = state; // State after trade
+        FullAMMState state1price = state; // State after price tweak
         {
             const money max_price = d.high * (1 - ext_fee);
-            if ((max_price != 0) & (max_price > p_before)) {
-                auto step = step_for_price_2(state, 0, max_price, vol, ext_vol);
+            // External Y price is higher. AMM will buy X from and
+            // sell Y to arbitrageurs
+            if ((max_price != 0) & (max_price > state.price)) {
+                auto step = step_for_price_2(state1exch.amm, 0, max_price, vol, ext_vol);
                 if (step > 0) {
-                    const money dy = exchange_2(state, step, a, b);
-                    vol += step * price_oracle[a];
-                    const money _dx = dy;
-                    last    = curve.price_2(state);
-                    p_after = last;
-                    volume += _dx / (state.xs[b] + state.xs[a] / p_after) * N / 2;
-                    const money _slippage = (_dx * (p_before + p_after)) / (2.L * (mabs(p_before - p_after)) * state.xs[b]);
+                    // Compute trade
+                    Trade trade(Trade::BUY, step, a, b, state.amm, curve);
+                    Trade trade_fee = trade.applyFee(compute_fee(state.amm, trade));
+                    // Update state
+                    FullAMMState state1exch = state.applyTrade(trade_fee, curve);
+                    update_xcp_2(state, state1exch);
+                    // Summary stats
+                    vol += trade.buy * price_oracle[a];
+                    const money _dx = trade.sell;
+                    //
+                    const money p_before = state.price;
+                    const money p_after  = state1exch.price;
+                    volume += _dx / (state1exch.amm.xs[b] + state1exch.amm.xs[a] / p_after) * N / 2;
+                    const money _slippage = (_dx * (p_before + p_after))
+                                          / (2.L * (mabs(p_before - p_after)) * state1exch.amm.xs[b]);
                     if (_slippage > 1e-10) {
                         slippage_count += last_time;
                         antislippage   += last_time * _slippage;
                         slippage       += last_time / _slippage;
-                        imbalance      += mabs(logl((_high + _low) / (2.L * state.price[1]))) * curve.A * last_time;
+                        imbalance      += mabs(logl((_high + _low) / (2.L * state1exch.amm.price[1]))) * curve.A * last_time;
                     }
+                    //
+                    last  = state1exch.price;
                     _high = last;
-                    apply_tweak_trade();
+                    //
+                    state1price = state1exch;
+                    apply_tweak_trade(state1exch, state1price);
                 }
             }
         }
 
+        // ==== Trade 2 ====
+        FullAMMState state2exch  = state1price;
+        FullAMMState state2price = state1price;
         {
             const money min_price = d.low  * (1 + ext_fee);
-            p_before = p_after;
-
-            if ((min_price != 0) && (min_price < p_before)) {
-                auto step = step_for_price_2(state, min_price, 0, vol, ext_vol);
+            // External Y price is lower than AMM's. AMM will buy Y and sell X
+            if ((min_price != 0) && (min_price < state1exch.price)) {
+                auto step = step_for_price_2(state2exch.amm, min_price, 0, vol, ext_vol);
                 if (step > 0) {
-                    const money dy = exchange_2(state, step, b, a);
-                    vol += dy * price_oracle[a];
-                    const money _dx = step;
-                    last    = curve.price_2(state);
-                    p_after = last;
-                    volume += _dx / (state.xs[b] + state.xs[a] / p_after) * N / 2;
-                    const money _slippage = (_dx * (p_before + p_after)) / (2.L * (mabs(p_before - p_after)) * state.xs[b]);
+                    Trade trade(Trade::BUY, step, b, a, state1price.amm, curve);
+                    Trade trade_fee = trade.applyFee(compute_fee(state1price.amm, trade));
+                    //
+                    state2exch = state1price.applyTrade(trade_fee, curve);
+                    update_xcp_2(state1price, state2exch);
+                    //
+                    vol += trade.sell * price_oracle[a];
+                    const money _dx = trade.buy;
+                    //
+                    const money p_before = state1exch.price;
+                    const money p_after  = state2exch.price;
+                    volume += _dx / (state2exch.amm.xs[b] + state2exch.amm.xs[a] / p_after) * N / 2;
+                    const money _slippage = (_dx * (p_before + p_after))
+                                          / (2.L * (mabs(p_before - p_after)) * state2exch.amm.xs[b]);
                     if (_slippage > 1e-10) {
                         slippage_count += last_time;
                         antislippage += last_time * _slippage;
                         slippage += last_time / _slippage;
-                        imbalance += logl(mabs((_high + _low) / (2.L * state.price[1]))) * curve.A * last_time;
+                        imbalance += logl(mabs((_high + _low) / (2.L * state2exch.amm.price[1]))) * curve.A * last_time;
                     }
-                    apply_tweak_trade();
+                    //
+                    last = state2exch.price;
+                    //
+                    state2price = state2exch;
+                    apply_tweak_trade(state2exch, state2price);
                 }
             }
         }
-
+        // ==== Fini ====
+        state = state2price;
 
         auto local_boost_rate = this->boost_rate;
         if (mid_fee < out_fee)
-            local_boost_rate *= 1 + (fee_2(state) - mid_fee) / (out_fee - mid_fee) * (this->boost_mul - 1);
+            local_boost_rate *= 1 + (compute_fee(state.amm) - mid_fee) / (out_fee - mid_fee) * (this->boost_mul - 1);
 
         // Boost with special donations to the pool
         if (this->boost_rate > 0) {
             auto _boost = (1.L + last_time * local_boost_rate);
-            state.xs[0] = state.xs[0] * _boost;
-            state.xs[1] = state.xs[1] * _boost;
+            state.amm.xs[0] = state.amm.xs[0] * _boost;
+            state.amm.xs[1] = state.amm.xs[1] * _boost;
+            state.compute(curve);
             xcp_profit_real *= _boost;
-            xcp             *= _boost;
             this->boost_integral *= _boost;
         }
 
@@ -638,15 +642,16 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         //
         // FIXME: Contrary to comment we only tweak price on trade
         if (d.t - last_time_tweak_price >= 3600) {
-            apply_tweak_trade();
+            FullAMMState state_ = state; // FIXME: Work duplication!
+            apply_tweak_trade(state_, state);
         }
 
         TokensXP _xp;
-        state.getXP(_xp);
+        state.amm.getXP(_xp);
         money ideal_vp = xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction);
         money bal_mul = (_xp[0] + _xp[1]);
         bal_mul = 4 * _xp[0] * _xp[1] / (bal_mul * bal_mul);
-        // xcp_profit_real_adj *= (ideal_vp / xcp_profit_real_prev - 1.L) * bal_mul * bal_mul + 1.L;
+
         xcp_profit_real_adj *= (ideal_vp / xcp_profit_real_prev);
         xcp_profit_real_prev = ideal_vp;
 
@@ -678,13 +683,13 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                        100.L * i / total_elements,
                        0, // FIXME: kept for keeping golden tests
                        last,
-                       state.price.py,
+                       state.amm.price.py,
                        total_vol,
                        (xcp_profit_real - 1.) / (xcp_profit - 1.L),
                        xcp_profit_real,
                        APY * 100.L,
                        tw_apr * 100.L,
-                       fee_2(state) * 100.L);
+                       compute_fee(state.amm) * 100.L);
             } catch (std::exception const &e) {
                 printf("caught '%s'\n", e.what());
             }
@@ -693,10 +698,10 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         if (log) {
             fprintf(out_file, "{\"t\": %lu, \"token0\": %.6Le, \"token1\": %.6Le, \"price_oracle\": %.6Le, \"price_scale\": %.6Le, \"profit\": %.6Le, \"xcp\": %.6Le, \"open\": %.6Le, \"high\": %.6Le, \"low\": %.6Le, \"close\": %.6Le, \"boost_rate\": %.6Le}",
                     d.t,
-                    state.xs.x,
-                    state.xs.y,
+                    state.amm.xs.x,
+                    state.amm.xs.y,
                     price_oracle[b] / price_oracle[a],
-                    state.price[1],
+                    state.amm.price[1],
                     xcp_profit_real - 1.0,
                     xcp_profit,
                     d.open, d.high, d.low, d.close,
@@ -725,7 +730,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     }
 }
 
-void Trader::tweak_price_2(AMMState& state, u64 t, money spot_prev) {
+void Trader::tweak_price_2(const FullAMMState& oldstate, FullAMMState& state, u64 t, money spot_prev) {
     const int N = 2;
 
     // --- Feed the EMA with the pool's own spot (pre-fee marginal price),
@@ -733,7 +738,7 @@ void Trader::tweak_price_2(AMMState& state, u64 t, money spot_prev) {
     const money amm_p01 = spot_prev;             // dx/dy (coin0 per coin1)
     // money amm_p01 = price_2(0, 1);
     // Optional: cap like the real pool (avoid extreme oracle jumps)
-    const money capped_p01 = std::min(amm_p01, 2.L * state.price[1]);
+    const money capped_p01 = std::min(amm_p01, 2.L * state.amm.price[1]);
 
     const Prices spot = {1.L, capped_p01};
     ma_recorder(t, spot);
@@ -742,7 +747,7 @@ void Trader::tweak_price_2(AMMState& state, u64 t, money spot_prev) {
     // # price_oracle looks like [1, p1, p2, ...] normalized to 1e18
     money S = 0;
     for (size_t i = 0; i < N; i++) {
-        auto t = price_oracle[i] / state.price[i] - 1.L;
+        auto t = price_oracle[i] / state.amm.price[i] - 1.L;
         S += t*t;
     }
     const money norm = sqrt(S);
@@ -758,27 +763,21 @@ void Trader::tweak_price_2(AMMState& state, u64 t, money spot_prev) {
         return;
     }
 
-    Prices p_new;
-    p_new.px = 1.L;
+    FullAMMState old_state = state;
     {
-        auto p_target = state.price.py;
-        auto p_real = price_oracle[1];
-        p_new.py = p_target + _adjustment_step * (p_real - p_target) / norm;
+        auto p_target = state.amm.price.py;
+        auto p_real   = price_oracle[1];
+        state.amm.price.py = p_target + _adjustment_step * (p_real - p_target) / norm;
     }
-    Prices old_p;
-    old_p = state.price;
-
     auto old_profit = xcp_profit_real;
-    auto old_xcp = xcp;
+    state.compute(curve);
 
-    state.price = p_new;
-    update_xcp_2(state, true);
+    update_xcp_2(oldstate, state, true);
 
     if (xcp_profit_real <= xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction)) {
         //  If real profit is less than equilibrium - revert params back
-        state.price = old_p;
+        state = old_state;
         xcp_profit_real = old_profit;
-        xcp = old_xcp;
         not_adjusted = false;
     }
 }
