@@ -595,7 +595,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                         slippage_count += last_time;
                         antislippage += last_time * _slippage;
                         slippage += last_time / _slippage;
-                        imbalance += logl(mabs(last / state_trade.amm.price[1])) * curve.A * last_time;
+                        imbalance += mabs(logl(last / state_trade.amm.price[1])) * curve.A * last_time;
                     }
                 }
             }
