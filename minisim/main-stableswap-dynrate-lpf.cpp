@@ -579,18 +579,20 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                     const money dy = exchange_2(state, state1exch, step, a, b);
                     vol += step * price_oracle[a];
                     const money _dx = dy;
-                    last    = state1exch.price;
+                    //
                     const money p_before = state.price;
                     const money p_after  = state1exch.price;
-
                     volume += _dx / (state1exch.amm.xs[b] + state1exch.amm.xs[a] / p_after) * N / 2;
-                    const money _slippage = (_dx * (p_before + p_after)) / (2.L * (mabs(p_before - p_after)) * state1exch.amm.xs[b]);
+                    const money _slippage = (_dx * (p_before + p_after))
+                                          / (2.L * (mabs(p_before - p_after)) * state1exch.amm.xs[b]);
                     if (_slippage > 1e-10) {
                         slippage_count += last_time;
                         antislippage   += last_time * _slippage;
                         slippage       += last_time / _slippage;
                         imbalance      += mabs(logl((_high + _low) / (2.L * state1exch.amm.price[1]))) * curve.A * last_time;
                     }
+                    //
+                    last  = state1exch.price;
                     _high = last;
                     //
                     state1price = state1exch;
@@ -610,19 +612,21 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                     const money dy = exchange_2(state1price, state2exch, step, b, a);
                     vol += dy * price_oracle[a];
                     const money _dx = step;
-                    last = state2exch.price;
-
+                    //
                     const money p_before = state1exch.price;
                     const money p_after  = state2exch.price;
                     volume += _dx / (state2exch.amm.xs[b] + state2exch.amm.xs[a] / p_after) * N / 2;
-                    const money _slippage = (_dx * (p_before + p_after)) / (2.L * (mabs(p_before - p_after)) * state2exch.amm.xs[b]);
+                    const money _slippage = (_dx * (p_before + p_after))
+                                          / (2.L * (mabs(p_before - p_after)) * state2exch.amm.xs[b]);
                     if (_slippage > 1e-10) {
                         slippage_count += last_time;
                         antislippage += last_time * _slippage;
                         slippage += last_time / _slippage;
                         imbalance += logl(mabs((_high + _low) / (2.L * state2exch.amm.price[1]))) * curve.A * last_time;
                     }
-
+                    //
+                    last = state2exch.price;
+                    //
                     state2price = state2exch;
                     apply_tweak_trade(state2exch, state2price);
                 }
