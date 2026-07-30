@@ -474,7 +474,7 @@ money Trader::step_for_price_2(const AMMState& state0, money p_min, money p_max,
 
 
 void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
-    size_t N = 2;
+    const size_t N = 2;
     long double last_time_tweak_price = 0;
     const size_t total_elements = simdata->test_data->size();
     const price_point* mapped_data = simdata->test_data->array();
