@@ -528,7 +528,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             last_time = d.t - mapped_data[i-1].t;
         }
 
-        money vol     = 0.0L;
         const money ext_vol = money(d.volume * price_oracle[b]); //  <- now all is in USD
         money       _high = last;
         const money _low  = last;
@@ -550,7 +549,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             // External Y price is higher. AMM will buy X from and
             // sell Y to arbitrageurs
             if ((max_price != 0) & (max_price > state.price)) {
-                auto step = step_for_price_2(state_trade.amm, 0, max_price, vol, ext_vol);
+                auto step = step_for_price_2(state_trade.amm, 0, max_price, 0, ext_vol);
                 if (step > 0) {
                     // Compute trade
                     Trade trade(Trade::BUY, step, a, b, state.amm, curve);
@@ -559,7 +558,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                     FullAMMState state_trade = state.applyTrade(trade_fee, curve);
                     update_xcp_2(state, state_trade);
                     // Summary stats
-                    vol += trade.buy * price_oracle[a];
+                    total_vol += trade.buy * price_oracle[a];
                     const money _dx = trade.sell;
                     //
                     const money p_before = state.price;
@@ -581,7 +580,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                     apply_tweak_trade(state_trade, state_price);
                 }
             } else if((min_price != 0) && (min_price < state_trade.price)) {
-                auto step = step_for_price_2(state_trade.amm, min_price, 0, vol, ext_vol);
+                auto step = step_for_price_2(state_trade.amm, min_price, 0, 0, ext_vol);
                 if (step > 0) {
                     Trade trade(Trade::BUY, step, b, a, state_price.amm, curve);
                     Trade trade_fee = trade.applyFee(compute_fee(state_price.amm, trade));
@@ -589,7 +588,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                     state_trade = state_price.applyTrade(trade_fee, curve);
                     update_xcp_2(state_price, state_trade);
                     //
-                    vol += trade.sell * price_oracle[a];
+                    total_vol += trade.sell * price_oracle[a];
                     const money _dx = trade.buy;
                     //
                     const money p_before = state.price;
@@ -645,7 +644,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         xcp_profit_real_adj *= (ideal_vp / xcp_profit_real_prev);
         xcp_profit_real_prev = ideal_vp;
 
-        total_vol          += vol;
         imbalance_integral += (1.L - bal_mul) * last_time;  // last_time is dt here
         long double ARU_x = ideal_vp;
         long double ARU_y = (86400.L * 365.L / (d.t - start_t + 1.L));
