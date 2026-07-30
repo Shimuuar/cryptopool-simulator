@@ -542,6 +542,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         FullAMMState state_trade = state; // State after trade
         FullAMMState state_price = state; // State after price tweak
         {
+            bool trade_happened = false;
             const money max_price = d.price * (1 - ext_fee);
             const money min_price = d.price * (1 + ext_fee);
             // External Y price is higher. AMM will buy X from and
@@ -549,6 +550,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             if ((max_price != 0) & (max_price > state.price)) {
                 auto step = step_for_price_2(state_trade.amm, 0, max_price, 0, ext_vol);
                 if (step > 0) {
+                    trade_happened = true;
                     // Compute trade
                     Trade trade(Trade::BUY, step, a, b, state.amm, curve);
                     Trade trade_fee = trade.applyFee(compute_fee(state.amm, trade));
@@ -570,15 +572,11 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                         slippage       += last_time / _slippage;
                         imbalance      += mabs(logl(last / state_trade.amm.price[1])) * curve.A * last_time;
                     }
-                    //
-                    last  = state_trade.price;
-                    //
-                    state_price = state_trade;
-                    apply_tweak_trade(state_trade, state_price);
                 }
-            } else if((min_price != 0) && (min_price < state_trade.price)) {
+            } else if((min_price != 0) && (min_price < state.price)) {
                 auto step = step_for_price_2(state_trade.amm, min_price, 0, 0, ext_vol);
                 if (step > 0) {
+                    trade_happened = true;
                     Trade trade(Trade::BUY, step, b, a, state_price.amm, curve);
                     Trade trade_fee = trade.applyFee(compute_fee(state_price.amm, trade));
                     //
@@ -599,16 +597,13 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                         slippage += last_time / _slippage;
                         imbalance += logl(mabs(last / state_trade.amm.price[1])) * curve.A * last_time;
                     }
-                    //
-                    last = state_trade.price;
-                    //
-                    state_price = state_trade;
-                    apply_tweak_trade(state_trade, state_price);
-                    // std::cerr << "LOO\n";
                 }
             }
-            if(trade_happened ) {
-                // std::cerr << "XX\n";
+            if( trade_happened ) {
+                // Apply correction to a price scale
+                state_price = state_trade;
+                apply_tweak_trade(state_trade, state_price);
+                last = state_trade.price;
             }
         }
         // ==== Fini ====
