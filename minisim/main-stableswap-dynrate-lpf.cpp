@@ -553,7 +553,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                     Trade trade(Trade::BUY, step, a, b, state.amm, curve);
                     Trade trade_fee = trade.applyFee(compute_fee(state.amm, trade));
                     // Update state
-                    FullAMMState state_trade = state.applyTrade(trade_fee, curve);
+                    state_trade = state.applyTrade(trade_fee, curve);
                     update_xcp_2(state, state_trade);
                     // Summary stats
                     total_vol += trade.buy * price_oracle[a];
