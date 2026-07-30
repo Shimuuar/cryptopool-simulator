@@ -113,6 +113,27 @@ public:
     money gamma;
 };
 
+// Single trade peformed by pool.
+struct Trade {
+    enum Dir { BUY, SELL };
+
+    // Trade() = default;
+
+    // Construct trade on a curve.
+    Trade(Trade::Dir      trade,  // Whether amount is begin bought or sold by AMM
+          money           amount, // Token amount
+          int             ibuy,   // Index of token being bought
+          int             isell,  // Index of token being sold
+          const AMMState& state,  // Initial state of AMM
+          const Curve&    curve   // Curve description
+        );
+
+    money buy;    // Amount of tokens AMM buys
+    money sell;   // Amount of tokens AMM sells
+    int   i_buy;  // Index of bought token
+    int   i_sell; // Index of sold token
+};
+
 std::ostream& operator<<(std::ostream&, const Tokens&);
 std::ostream& operator<<(std::ostream&, const Prices&);
 std::ostream& operator<<(std::ostream&, const AMMState&);

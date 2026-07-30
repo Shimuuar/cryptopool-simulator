@@ -127,6 +127,28 @@ void FullAMMState::compute(const Curve& curve) {
     xcp   = curve.get_xcp_2(amm);
     price = curve.price_2(amm);
 }
+
+
+Trade::Trade(Trade::Dir      trade,
+             money           amount,
+             int             ibuy,
+             int             isell,
+             const AMMState& amm,
+             const Curve&    curve
+    )
+{
+    i_buy  = ibuy;
+    i_sell = isell;
+    if( trade == Trade::BUY ) {
+        buy  = amount;
+        sell = amm.xs[i_sell] - curve.y_2(amm, amm.xs[i_buy] + buy, i_buy, i_sell);
+    } else {
+        sell = -amount;
+        buy  = amm.xs[i_buy] - curve.y_2(amm, amm.xs[i_sell] + sell, i_sell, i_buy);
+    }
+}
+
+
 std::ostream& operator<<(std::ostream& o, const Tokens& tok) {
     o << '[' << tok.x << ", " << tok.y << ']';
     return o;
