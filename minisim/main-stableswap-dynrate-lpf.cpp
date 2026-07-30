@@ -543,6 +543,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         FullAMMState state_price = state; // State after price tweak
         {
             bool trade_happened = false;
+            money trade_dx;
             const money max_price = d.price * (1 - ext_fee);
             const money min_price = d.price * (1 + ext_fee);
             // External Y price is higher. AMM will buy X from and
@@ -559,19 +560,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                     update_xcp_2(state, state_trade);
                     // Summary stats
                     total_vol += trade.buy * price_oracle[a];
-                    const money _dx = trade.sell;
-                    //
-                    const money p_before = state.price;
-                    const money p_after  = state_trade.price;
-                    volume += _dx / (state_trade.amm.xs[b] + state_trade.amm.xs[a] / p_after) * N / 2;
-                    const money _slippage = (_dx * (p_before + p_after))
-                                          / (2.L * (mabs(p_before - p_after)) * state_trade.amm.xs[b]);
-                    if (_slippage > 1e-10) {
-                        slippage_count += last_time;
-                        antislippage   += last_time * _slippage;
-                        slippage       += last_time / _slippage;
-                        imbalance      += mabs(logl(last / state_trade.amm.price[1])) * curve.A * last_time;
-                    }
+                    trade_dx = trade.sell;
                 }
             } else if((min_price != 0) && (min_price < state.price)) {
                 auto step = step_for_price_2(state_trade.amm, min_price, 0, 0, ext_vol);
@@ -584,22 +573,22 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                     update_xcp_2(state_price, state_trade);
                     //
                     total_vol += trade.sell * price_oracle[a];
-                    const money _dx = trade.buy;
-                    //
-                    const money p_before = state.price;
-                    const money p_after  = state_trade.price;
-                    volume += _dx / (state_trade.amm.xs[b] + state_trade.amm.xs[a] / p_after) * N / 2;
-                    const money _slippage = (_dx * (p_before + p_after))
-                                          / (2.L * (mabs(p_before - p_after)) * state_trade.amm.xs[b]);
-                    if (_slippage > 1e-10) {
-                        slippage_count += last_time;
-                        antislippage += last_time * _slippage;
-                        slippage += last_time / _slippage;
-                        imbalance += mabs(logl(last / state_trade.amm.price[1])) * curve.A * last_time;
-                    }
+                    trade_dx   = trade.buy;
                 }
             }
             if( trade_happened ) {
+                const money p_before = state.price;
+                const money p_after  = state_trade.price;
+                volume += trade_dx / (state_trade.amm.xs[b] + state_trade.amm.xs[a] / p_after) * N / 2;
+                const money _slippage = (trade_dx * (p_before + p_after))
+                                      / (2.L * (mabs(p_before - p_after)) * state_trade.amm.xs[b]);
+                // Slippage
+                if (_slippage > 1e-10) {
+                    slippage_count += last_time;
+                    antislippage   += last_time * _slippage;
+                    slippage       += last_time / _slippage;
+                    imbalance      += mabs(logl(last / state_trade.amm.price[1])) * curve.A * last_time;
+                }
                 // Apply correction to a price scale
                 state_price = state_trade;
                 apply_tweak_trade(state_trade, state_price);
