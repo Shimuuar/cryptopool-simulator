@@ -26,8 +26,9 @@ static void print_clock(string const &mesg, double start, double end) {
     printf("%s %.3lf sec\n", mesg.c_str(), double(end - start));
 }
 
+// OHLC candlesticks
 struct trade_data {
-    u64 t = 0;          // 0
+    u64 t = 0;         // 0
     money open = 0;    // 1
     money high = 0;    // 2
     money low = 0;     // 3
@@ -39,6 +40,13 @@ struct trade_data {
     }
 };
 
+// For simulation we need only triple (time,price,volume)
+struct price_point {
+    u64   t;
+    money price;
+    money volume;
+};
+
 static inline money mabs(money val) noexcept {
     return val >= 0 ? val : -val;
 }
@@ -46,24 +54,24 @@ static inline money mabs(money val) noexcept {
 class TradeDataArray {
 public:
     virtual size_t size() const = 0;
-    virtual const trade_data* array() const = 0;
+    virtual const price_point* array() const = 0;
     virtual ~TradeDataArray() = default;
 };
 
 class TradeDataVector: public TradeDataArray {
 public:
-    TradeDataVector(const std::vector<trade_data>& vec) :
+    TradeDataVector(const std::vector<price_point>& vec) :
         m_vec(vec)
     {}
-    TradeDataVector(std::vector<trade_data>&& vec) :
+    TradeDataVector(std::vector<price_point>&& vec) :
         m_vec(vec)
     {}
     virtual ~TradeDataVector() = default;
 
-    virtual size_t            size()  const { return m_vec.size(); }
-    virtual const trade_data* array() const { return &m_vec[0]; }
+    virtual size_t             size()  const { return m_vec.size(); }
+    virtual const price_point* array() const { return &m_vec[0]; }
 private:
-    std::vector<trade_data> m_vec;
+    std::vector<price_point> m_vec;
 };
 
 
@@ -126,13 +134,13 @@ vector<trade_data> get_data(std::string const &fname) {
     return ret;
 }
 
-Prices get_price_vector(vector<trade_data> const &data) {
+Prices get_price_vector(vector<price_point> const &data) {
     Prices p;
     if( data.empty() ) {
         throw std::runtime_error("Empty data vector");
     }
     p.px = 1.L;
-    p.py = data[0].close;
+    p.py = data[0].price;
     return p;
 }
 
@@ -153,12 +161,12 @@ TradeDataArray* get_all(json const &jin, int last_elems, Prices& price_vector) {
         min_time = min(min_time, t.t);
         max_time = max(max_time, t.t);
     }
-    vector<trade_data> out;
+    vector<price_point> out;
 
     for (auto &trade: all_trades) {
         if (trade.t >= min_time && trade.t <= max_time) {
-            trade_data trade_min;
-            trade_data trade_max;
+            price_point trade_min;
+            price_point trade_max;
 
             // (1, 2) min
             // (0, 2) min
@@ -168,26 +176,16 @@ TradeDataArray* get_all(json const &jin, int last_elems, Prices& price_vector) {
             // (1, 2) max
             trade_min.t = trade.t - 1 * 10 + 5;
             trade_max.t = trade.t + 1 * 10 - 5;
-            trade_min.open = trade.open;
-            trade_max.close = trade.close;
             // no halving here - volumes are later halved in decision-making
             trade_min.volume = trade.volume;
             trade_max.volume = trade.volume;
 
             if (mabs(trade.open - trade.low) + mabs(trade.close - trade.high) < mabs(trade.open - trade.high) + mabs(trade.close - trade.low)) {
-                trade_min.high = trade.low;
-                trade_min.low = trade.low;
-                trade_min.close = trade.low;
-                trade_max.open = trade.high;
-                trade_max.high = trade.high;
-                trade_max.low = trade.high;
+                trade_min.price = trade.low;
+                trade_max.price = trade.high;
             } else {
-                trade_min.high = trade.high;
-                trade_min.low = trade.high;
-                trade_min.close = trade.high;
-                trade_max.open = trade.low;
-                trade_max.high = trade.low;
-                trade_max.low = trade.low;
+                trade_min.price = trade.high;
+                trade_max.price = trade.low;
             }
 
             out.push_back(trade_min);
@@ -479,7 +477,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     size_t N = 2;
     long double last_time_tweak_price = 0;
     const size_t total_elements = simdata->test_data->size();
-    const trade_data* mapped_data = simdata->test_data->array();
+    const price_point* mapped_data = simdata->test_data->array();
     money xcp_profit_real_prev = 1.L;
     money xcp_profit_real_adj = 1.L;
     money slippage = 0;
@@ -520,7 +518,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
 
     for (size_t i = 0; i < total_elements; i++) {
         long double last_time = 0;
-        trade_data d = mapped_data[i];
+        price_point d = mapped_data[i];
 
         if (i == 0) {
             last_time_tweak_price = d.t;
@@ -547,7 +545,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         FullAMMState state1exch  = state; // State after trade
         FullAMMState state1price = state; // State after price tweak
         {
-            const money max_price = d.high * (1 - ext_fee);
+            const money max_price = d.price * (1 - ext_fee);
             // External Y price is higher. AMM will buy X from and
             // sell Y to arbitrageurs
             if ((max_price != 0) & (max_price > state.price)) {
@@ -588,7 +586,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         FullAMMState state2exch  = state1price;
         FullAMMState state2price = state1price;
         {
-            const money min_price = d.low  * (1 + ext_fee);
+            const money min_price = d.price  * (1 + ext_fee);
             // External Y price is lower than AMM's. AMM will buy Y and sell X
             if ((min_price != 0) && (min_price < state1exch.price)) {
                 auto step = step_for_price_2(state2exch.amm, min_price, 0, vol, ext_vol);
@@ -696,7 +694,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         }
 
         if (log) {
-            fprintf(out_file, "{\"t\": %lu, \"token0\": %.6Le, \"token1\": %.6Le, \"price_oracle\": %.6Le, \"price_scale\": %.6Le, \"profit\": %.6Le, \"xcp\": %.6Le, \"open\": %.6Le, \"high\": %.6Le, \"low\": %.6Le, \"close\": %.6Le, \"boost_rate\": %.6Le}",
+            fprintf(out_file, "{\"t\": %lu, \"token0\": %.6Le, \"token1\": %.6Le, \"price_oracle\": %.6Le, \"price_scale\": %.6Le, \"profit\": %.6Le, \"xcp\": %.6Le, \"boost_rate\": %.6Le}",
                     d.t,
                     state.amm.xs.x,
                     state.amm.xs.y,
@@ -704,7 +702,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                     state.amm.price[1],
                     xcp_profit_real - 1.0,
                     xcp_profit,
-                    d.open, d.high, d.low, d.close,
                     local_boost_rate);
             if (i < total_elements - 1) {
                 fprintf(out_file, ",\n");
