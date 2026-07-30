@@ -123,10 +123,26 @@ money Curve::get_xcp_2(const AMMState& st) const {
     return geometric_mean_2(X);
 }
 
+
+AMMState AMMState::applyTrade(const Trade& trade) const {
+    AMMState amm(*this);
+    amm.xs[trade.i_buy]  += trade.buy;
+    amm.xs[trade.i_sell] -= trade.sell;
+    return amm;
+}
+
 void FullAMMState::compute(const Curve& curve) {
     xcp   = curve.get_xcp_2(amm);
     price = curve.price_2(amm);
 }
+
+FullAMMState FullAMMState::applyTrade(const Trade& trade, const Curve& curve) const {
+    FullAMMState st;
+    st.amm = this->amm.applyTrade(trade);
+    st.compute(curve);
+    return st;
+}
+
 
 
 Trade::Trade(Trade::Dir      trade,
@@ -148,6 +164,12 @@ Trade::Trade(Trade::Dir      trade,
     }
 }
 
+Trade Trade::applyFee(money fee) const {
+    Trade t(*this);
+    t.sell *= 1 - fee;
+    return t;
+}
+
 
 std::ostream& operator<<(std::ostream& o, const Tokens& tok) {
     o << '[' << tok.x << ", " << tok.y << ']';
@@ -160,5 +182,9 @@ std::ostream& operator<<(std::ostream& o, const Prices& p) {
 
 std::ostream& operator<<(std::ostream& o, const AMMState& amm) {
     o << "AMM{p="<<amm.price<< ", x="<<amm.xs<<"}";
+    return o;
+}
+std::ostream& operator<<(std::ostream& o, const Trade& t) {
+    o << "Trade{buy="<<t.buy<< ", sell="<<t.sell<<", i_buy="<<t.i_buy<<", i_sell="<<t.i_sell<<"}";
     return o;
 }

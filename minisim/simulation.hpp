@@ -9,6 +9,9 @@
 using u64   = uint64_t;
 using money = long double;
 
+class Curve;
+class Trade;
+
 
 // Price scale in AMM
 struct Prices {
@@ -57,8 +60,6 @@ struct TokensXP {
     }
 };
 
-class Curve;
-
 // State of AMM. It's fully described by amount of tokens and price
 // scale
 struct AMMState {
@@ -77,6 +78,8 @@ struct AMMState {
         }
     }
     
+    AMMState applyTrade(const Trade& trade) const;
+
     Prices price; // Price scale for AMM
     Tokens xs;    // Amount of tokens in AMM
 };
@@ -88,6 +91,8 @@ struct FullAMMState {
     money    price;
 
     void compute(const Curve& curve);
+
+    FullAMMState applyTrade(const Trade& trade, const Curve& curve) const;
 };
 
 
@@ -128,6 +133,9 @@ struct Trade {
           const Curve&    curve   // Curve description
         );
 
+    // Apply fee.
+    Trade applyFee(money fee) const;
+
     money buy;    // Amount of tokens AMM buys
     money sell;   // Amount of tokens AMM sells
     int   i_buy;  // Index of bought token
@@ -137,3 +145,4 @@ struct Trade {
 std::ostream& operator<<(std::ostream&, const Tokens&);
 std::ostream& operator<<(std::ostream&, const Prices&);
 std::ostream& operator<<(std::ostream&, const AMMState&);
+std::ostream& operator<<(std::ostream&, const Trade&);
