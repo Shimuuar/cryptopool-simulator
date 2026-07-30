@@ -257,13 +257,11 @@ struct Trader {
 
         this->boost_rate = jconf["boost_rate"];
         this->boost_mul = jconf["boost_mul"];
-        this->boost_min = jconf["boost_min"];
         if (jconf.contains("lp_profit_fraction"))
             this->lp_profit_fraction = jconf["lp_profit_fraction"];
         else
             this->lp_profit_fraction = 0.5L;
         this->boost_rate = this->boost_rate / (86400L * 365L);
-        this->boost_min = this->boost_min / (86400L * 365L);
         this->boost_integral = 1.L;
         log = jconf["log"];
         this->price_oracle = p0;
@@ -329,7 +327,6 @@ struct Trader {
     const money gas_fee;
     money boost_rate;
     money boost_mul;
-    money boost_min;
     money boost_integral;
     money lp_profit_fraction;
     bool not_adjusted;
