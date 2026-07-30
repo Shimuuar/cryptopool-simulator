@@ -652,10 +652,9 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         }
         if (i % 1024 == 0 && log) {
             try {
-                printf("t=%lu %.1Lf%%\ttrades: %d\tAMM: %.5Lf\tTarget: %.5Lf\tVol: %.4Lf\tPR:%.2Lf\txCP-growth: {%.10Lf}\tAPY:%.1Lf%%\ttw_apr:%.1Lf%%\tfee:%.3Lf%% .\n",
+                printf("t=%lu %.1Lf%%\ttrades: 0\tAMM: %.5Lf\tTarget: %.5Lf\tVol: %.4Lf\tPR:%.2Lf\txCP-growth: {%.10Lf}\tAPY:%.1Lf%%\ttw_apr:%.1Lf%%\tfee:%.3Lf%% .\n",
                        d.t,
                        100.L * i / total_elements,
-                       0, // FIXME: kept for keeping golden tests
                        last,
                        state.amm.price.p[1],
                        total_vol,
