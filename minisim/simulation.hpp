@@ -17,62 +17,42 @@ class Curve;
 class Trade;
 
 
-// Price scale in AMM
+// Price scale in AMM. 
 struct Prices {
-    money px;
-    money py;
+    static constexpr int N = 2;
+    money p[N];
 
-    money operator[](int i) const {
-        if( 0 == i ) return px;
-        if( 1 == i ) return py;
-        abort();
-    }
+    money operator[](int i) const { return p[i]; }
 };
 
 // Amount of tokens in AMM
 struct Tokens {
-    money x;
-    money y;
+    static constexpr int N = 2;
+    money x[N];
 
-    const money& operator[](int i) const {
-        if( 0 == i ) return x;
-        if( 1 == i ) return y;
-        abort();
-    }
-    money& operator[](int i) {
-        if( 0 == i ) return x;
-        if( 1 == i ) return y;
-        abort();
-    }
+    const money& operator[](int i) const { return x[i]; }
+    money& operator[](int i) { return x[i]; }
 };
 
 
 // Amount of tokens after conversion by price scale
 struct TokensXP {
-    money x;
-    money y;
+    static constexpr int N = 2;
+    money x[N];
 
-    const money& operator[](int i) const {
-        if( 0 == i ) return x;
-        if( 1 == i ) return y;
-        abort();
-    }
-    money& operator[](int i) {
-        if( 0 == i ) return x;
-        if( 1 == i ) return y;
-        abort();
-    }
+    const money& operator[](int i) const { return x[i]; }
+    money& operator[](int i) { return x[i]; }
 };
 
 // State of AMM. It's fully described by amount of tokens and price
 // scale
 struct AMMState {
-    AMMState() = default; // Hack
+    AMMState() = default;
     AMMState(money D, const Prices& p) :
         price(p)
     {
-        xs.x = D / 2 / price.px;
-        xs.y = D / 2 / price.py;
+        xs.x[0] = D / 2 / price.p[0];
+        xs.x[1] = D / 2 / price.p[1];
     }
 
     void getXP(TokensXP &ret) const {
@@ -111,7 +91,7 @@ public:
     money y_2(const AMMState& st, money x, int i, int j) const;
     money p_2(const AMMState& st) const;
     money price_2(const AMMState& st) const {
-        return p_2(st) * st.price.py;
+        return p_2(st) * st.price.p[1];
     }
 
     money get_xcp_2(const AMMState& st) const;

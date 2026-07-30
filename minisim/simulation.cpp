@@ -172,11 +172,11 @@ Trade Trade::applyFee(money fee) const {
 
 
 std::ostream& operator<<(std::ostream& o, const Tokens& tok) {
-    o << '[' << tok.x << ", " << tok.y << ']';
+    o << '[' << tok[0] << ", " << tok[1] << ']';
     return o;
 }
 std::ostream& operator<<(std::ostream& o, const Prices& p) {
-    o << '[' << p.px << ", " << p.py << ']';
+    o << '[' << p[0] << ", " << p[1] << ']';
     return o;
 }
 

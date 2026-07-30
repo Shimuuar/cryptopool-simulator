@@ -135,12 +135,12 @@ vector<trade_data> get_data(std::string const &fname) {
 }
 
 Prices get_price_vector(vector<price_point> const &data) {
-    Prices p;
     if( data.empty() ) {
         throw std::runtime_error("Empty data vector");
     }
-    p.px = 1.L;
-    p.py = data[0].price;
+    Prices p;
+    p.p[0] = 1.L;
+    p.p[1] = data[0].price;
     return p;
 }
 
@@ -303,7 +303,7 @@ struct Trader {
             money alpha = powl(0.5, ((money)(t - this->t) / this->ma_half_time));
             alpha = min(alpha, 1.L);
             const size_t k = 1;
-            price_oracle.py = price_vector[k] * (1 - alpha) + price_oracle.py * alpha;
+            price_oracle.p[1] = price_vector[k] * (1 - alpha) + price_oracle.p[1] * alpha;
             this->t = t;
         }
     }
@@ -524,6 +524,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             last_time_tweak_price = d.t;
             this->t = d.t;
         }
+
         if( i > 0 ) {
             last_time = d.t - mapped_data[i-1].t;
         }
@@ -656,7 +657,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                        100.L * i / total_elements,
                        0, // FIXME: kept for keeping golden tests
                        last,
-                       state.amm.price.py,
+                       state.amm.price.p[1],
                        total_vol,
                        (xcp_profit_real - 1.) / (xcp_profit - 1.L),
                        xcp_profit_real,
@@ -671,8 +672,8 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         if (log) {
             fprintf(out_file, "{\"t\": %lu, \"token0\": %.6Le, \"token1\": %.6Le, \"price_oracle\": %.6Le, \"price_scale\": %.6Le, \"profit\": %.6Le, \"xcp\": %.6Le, \"boost_rate\": %.6Le}",
                     d.t,
-                    state.amm.xs.x,
-                    state.amm.xs.y,
+                    state.amm.xs[0],
+                    state.amm.xs[1],
                     price_oracle[b] / price_oracle[a],
                     state.amm.price[1],
                     xcp_profit_real - 1.0,
@@ -737,9 +738,9 @@ void Trader::tweak_price_2(const FullAMMState& oldstate, FullAMMState& state, u6
 
     FullAMMState old_state = state;
     {
-        auto p_target = state.amm.price.py;
+        auto p_target = state.amm.price.p[1];
         auto p_real   = price_oracle[1];
-        state.amm.price.py = p_target + _adjustment_step * (p_real - p_target) / norm;
+        state.amm.price.p[1] = p_target + _adjustment_step * (p_real - p_target) / norm;
     }
     auto old_profit = xcp_profit_real;
     state.compute(curve);
