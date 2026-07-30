@@ -529,8 +529,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         }
 
         const money ext_vol = money(d.volume * price_oracle[b]); //  <- now all is in USD
-        money       _high = last;
-        const money _low  = last;
 
         auto apply_tweak_trade = [&](const FullAMMState& oldst, FullAMMState& st) {
             money ps_before = st.amm.price[1];
@@ -570,11 +568,10 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                         slippage_count += last_time;
                         antislippage   += last_time * _slippage;
                         slippage       += last_time / _slippage;
-                        imbalance      += mabs(logl((_high + _low) / (2.L * state_trade.amm.price[1]))) * curve.A * last_time;
+                        imbalance      += mabs(logl(last / state_trade.amm.price[1])) * curve.A * last_time;
                     }
                     //
                     last  = state_trade.price;
-                    _high = last;
                     //
                     state_price = state_trade;
                     apply_tweak_trade(state_trade, state_price);
@@ -600,14 +597,18 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                         slippage_count += last_time;
                         antislippage += last_time * _slippage;
                         slippage += last_time / _slippage;
-                        imbalance += logl(mabs((_high + _low) / (2.L * state_trade.amm.price[1]))) * curve.A * last_time;
+                        imbalance += logl(mabs(last / state_trade.amm.price[1])) * curve.A * last_time;
                     }
                     //
                     last = state_trade.price;
                     //
                     state_price = state_trade;
                     apply_tweak_trade(state_trade, state_price);
+                    // std::cerr << "LOO\n";
                 }
+            }
+            if(trade_happened ) {
+                // std::cerr << "XX\n";
             }
         }
         // ==== Fini ====
