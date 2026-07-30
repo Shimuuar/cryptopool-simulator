@@ -542,85 +542,77 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         };
 
         // ==== Trade 1 ====
-        FullAMMState state1exch  = state; // State after trade
-        FullAMMState state1price = state; // State after price tweak
+        FullAMMState state_trade = state; // State after trade
+        FullAMMState state_price = state; // State after price tweak
         {
             const money max_price = d.price * (1 - ext_fee);
+            const money min_price = d.price * (1 + ext_fee);
             // External Y price is higher. AMM will buy X from and
             // sell Y to arbitrageurs
             if ((max_price != 0) & (max_price > state.price)) {
-                auto step = step_for_price_2(state1exch.amm, 0, max_price, vol, ext_vol);
+                auto step = step_for_price_2(state_trade.amm, 0, max_price, vol, ext_vol);
                 if (step > 0) {
                     // Compute trade
                     Trade trade(Trade::BUY, step, a, b, state.amm, curve);
                     Trade trade_fee = trade.applyFee(compute_fee(state.amm, trade));
                     // Update state
-                    FullAMMState state1exch = state.applyTrade(trade_fee, curve);
-                    update_xcp_2(state, state1exch);
+                    FullAMMState state_trade = state.applyTrade(trade_fee, curve);
+                    update_xcp_2(state, state_trade);
                     // Summary stats
                     vol += trade.buy * price_oracle[a];
                     const money _dx = trade.sell;
                     //
                     const money p_before = state.price;
-                    const money p_after  = state1exch.price;
-                    volume += _dx / (state1exch.amm.xs[b] + state1exch.amm.xs[a] / p_after) * N / 2;
+                    const money p_after  = state_trade.price;
+                    volume += _dx / (state_trade.amm.xs[b] + state_trade.amm.xs[a] / p_after) * N / 2;
                     const money _slippage = (_dx * (p_before + p_after))
-                                          / (2.L * (mabs(p_before - p_after)) * state1exch.amm.xs[b]);
+                                          / (2.L * (mabs(p_before - p_after)) * state_trade.amm.xs[b]);
                     if (_slippage > 1e-10) {
                         slippage_count += last_time;
                         antislippage   += last_time * _slippage;
                         slippage       += last_time / _slippage;
-                        imbalance      += mabs(logl((_high + _low) / (2.L * state1exch.amm.price[1]))) * curve.A * last_time;
+                        imbalance      += mabs(logl((_high + _low) / (2.L * state_trade.amm.price[1]))) * curve.A * last_time;
                     }
                     //
-                    last  = state1exch.price;
+                    last  = state_trade.price;
                     _high = last;
                     //
-                    state1price = state1exch;
-                    apply_tweak_trade(state1exch, state1price);
+                    state_price = state_trade;
+                    apply_tweak_trade(state_trade, state_price);
                 }
-            }
-        }
-
-        // ==== Trade 2 ====
-        FullAMMState state2exch  = state1price;
-        FullAMMState state2price = state1price;
-        {
-            const money min_price = d.price  * (1 + ext_fee);
-            // External Y price is lower than AMM's. AMM will buy Y and sell X
-            if ((min_price != 0) && (min_price < state1exch.price)) {
-                auto step = step_for_price_2(state2exch.amm, min_price, 0, vol, ext_vol);
+            } else if((min_price != 0) && (min_price < state_trade.price)) {
+                auto step = step_for_price_2(state_trade.amm, min_price, 0, vol, ext_vol);
                 if (step > 0) {
-                    Trade trade(Trade::BUY, step, b, a, state1price.amm, curve);
-                    Trade trade_fee = trade.applyFee(compute_fee(state1price.amm, trade));
+                    Trade trade(Trade::BUY, step, b, a, state_price.amm, curve);
+                    Trade trade_fee = trade.applyFee(compute_fee(state_price.amm, trade));
                     //
-                    state2exch = state1price.applyTrade(trade_fee, curve);
-                    update_xcp_2(state1price, state2exch);
+                    state_trade = state_price.applyTrade(trade_fee, curve);
+                    update_xcp_2(state_price, state_trade);
                     //
                     vol += trade.sell * price_oracle[a];
                     const money _dx = trade.buy;
                     //
-                    const money p_before = state1exch.price;
-                    const money p_after  = state2exch.price;
-                    volume += _dx / (state2exch.amm.xs[b] + state2exch.amm.xs[a] / p_after) * N / 2;
+                    const money p_before = state.price;
+                    const money p_after  = state_trade.price;
+                    volume += _dx / (state_trade.amm.xs[b] + state_trade.amm.xs[a] / p_after) * N / 2;
                     const money _slippage = (_dx * (p_before + p_after))
-                                          / (2.L * (mabs(p_before - p_after)) * state2exch.amm.xs[b]);
+                                          / (2.L * (mabs(p_before - p_after)) * state_trade.amm.xs[b]);
                     if (_slippage > 1e-10) {
                         slippage_count += last_time;
                         antislippage += last_time * _slippage;
                         slippage += last_time / _slippage;
-                        imbalance += logl(mabs((_high + _low) / (2.L * state2exch.amm.price[1]))) * curve.A * last_time;
+                        imbalance += logl(mabs((_high + _low) / (2.L * state_trade.amm.price[1]))) * curve.A * last_time;
                     }
                     //
-                    last = state2exch.price;
+                    last = state_trade.price;
                     //
-                    state2price = state2exch;
-                    apply_tweak_trade(state2exch, state2price);
+                    state_price = state_trade;
+                    apply_tweak_trade(state_trade, state_price);
                 }
             }
         }
         // ==== Fini ====
-        state = state2price;
+        state = state_price;
 
         auto local_boost_rate = this->boost_rate;
         if (mid_fee < out_fee)
