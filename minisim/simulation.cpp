@@ -2,6 +2,7 @@
 #include "simulation.hpp"
 #include <stdexcept>
 #include <cmath>
+#include <iostream>
 
 static inline money mabs(money val) noexcept {
     return val >= 0 ? val : -val;
@@ -125,4 +126,17 @@ money Curve::get_xcp_2(const AMMState& st) const {
 void FullAMMState::compute(const Curve& curve) {
     xcp   = curve.get_xcp_2(amm);
     price = curve.price_2(amm);
+}
+std::ostream& operator<<(std::ostream& o, const Tokens& tok) {
+    o << '[' << tok.x << ", " << tok.y << ']';
+    return o;
+}
+std::ostream& operator<<(std::ostream& o, const Prices& p) {
+    o << '[' << p.px << ", " << p.py << ']';
+    return o;
+}
+
+std::ostream& operator<<(std::ostream& o, const AMMState& amm) {
+    o << "AMM{p="<<amm.price<< ", x="<<amm.xs<<"}";
+    return o;
 }

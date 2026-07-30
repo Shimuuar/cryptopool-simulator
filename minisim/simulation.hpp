@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <cassert>
+#include <iosfwd>
 
 
 using u64   = uint64_t;
@@ -111,3 +112,7 @@ public:
     money A;
     money gamma;
 };
+
+std::ostream& operator<<(std::ostream&, const Tokens&);
+std::ostream& operator<<(std::ostream&, const Prices&);
+std::ostream& operator<<(std::ostream&, const AMMState&);
