@@ -542,9 +542,10 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         // ==== Trade 1 ====
         FullAMMState state_trade = state; // State after trade
         FullAMMState state_price = state; // State after price tweak
+        Trade trade;     // On-curve trade
+        Trade trade_fee; // Trade after fee is appplied
         {
             bool trade_happened = false;
-            money trade_dx;
             const money max_price = d.price * (1 - ext_fee);
             const money min_price = d.price * (1 + ext_fee);
             // External Y price is higher. AMM will buy X from and
@@ -553,31 +554,23 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                 auto step = step_for_price_2(state_trade.amm, 0, max_price, 0, ext_vol);
                 if (step > 0) {
                     trade_happened = true;
-                    // Compute trade
-                    Trade trade(Trade::BUY, step, a, b, state.amm, curve);
-                    Trade trade_fee = trade.applyFee(compute_fee(state.amm, trade));
-                    // Update state
-                    state_trade = state.applyTrade(trade_fee, curve);
-                    update_xcp_2(state, state_trade);
-                    // Summary stats
-                    total_vol += trade.buy * price_oracle[a];
-                    trade_dx = trade.sell;
+                    trade = Trade(Trade::BUY, step, a, b, state.amm, curve);
                 }
             } else if((min_price != 0) && (min_price < state.price)) {
                 auto step = step_for_price_2(state_trade.amm, min_price, 0, 0, ext_vol);
                 if (step > 0) {
                     trade_happened = true;
-                    Trade trade(Trade::BUY, step, b, a, state_price.amm, curve);
-                    Trade trade_fee = trade.applyFee(compute_fee(state_price.amm, trade));
-                    //
-                    state_trade = state_price.applyTrade(trade_fee, curve);
-                    update_xcp_2(state_price, state_trade);
-                    //
-                    total_vol += trade.sell * price_oracle[a];
-                    trade_dx   = trade.buy;
+                    trade = Trade(Trade::BUY, step, b, a, state_price.amm, curve);
                 }
             }
             if( trade_happened ) {
+                // Apply fee and make trade
+                trade_fee   = trade.applyFee(compute_fee(state_price.amm, trade));
+                state_trade = state_price.applyTrade(trade_fee, curve);
+                update_xcp_2(state_price, state_trade);
+                //
+                total_vol += trade.amountFor(a) * price_oracle[a];
+                const money trade_dx = trade.amountFor(b);
                 const money p_before = state.price;
                 const money p_after  = state_trade.price;
                 volume += trade_dx / (state_trade.amm.xs[b] + state_trade.amm.xs[a] / p_after) * N / 2;

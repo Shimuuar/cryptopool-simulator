@@ -106,7 +106,7 @@ public:
 struct Trade {
     enum Dir { BUY, SELL };
 
-    // Trade() = default;
+    Trade() = default;
 
     // Construct trade on a curve.
     Trade(Trade::Dir      trade,  // Whether amount is begin bought or sold by AMM
@@ -119,6 +119,9 @@ struct Trade {
 
     // Apply fee.
     Trade applyFee(money fee) const;
+    //
+    money amountFor(int i) const;
+
 
     money buy;    // Amount of tokens AMM buys
     money sell;   // Amount of tokens AMM sells

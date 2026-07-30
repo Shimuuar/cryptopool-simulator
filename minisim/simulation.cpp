@@ -170,6 +170,14 @@ Trade Trade::applyFee(money fee) const {
     return t;
 }
 
+money Trade::amountFor(int i) const {
+    if( i_buy == i )
+        return buy;
+    if( i_sell == i )
+        return sell;
+    return 0;
+}
+
 
 std::ostream& operator<<(std::ostream& o, const Tokens& tok) {
     o << '[' << tok[0] << ", " << tok[1] << ']';
