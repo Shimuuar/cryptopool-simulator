@@ -295,27 +295,23 @@ struct Trader {
     }
 
     money exchange_2(const FullAMMState& oldstate, FullAMMState& state, money dx, int i, int j) {
-        //"""
-        //Buy y for x
-        //"""
-        Tokens x_old = state.amm.xs;
-        auto x = state.amm.xs[i] + dx;
-        auto y = curve.y_2(state.amm, x, i, j);
+        money x_i = state.amm.xs[i] + dx;
+        money x_j = curve.y_2(state.amm, x_i, i, j);
 
-        state.amm.xs[i] = x;
-        state.amm.xs[j] = y;
-        auto fee_mul = 1.L - this->fee_2(state.amm);
-        auto dy = x_old[j] - y;
+        state.amm.xs[i] = x_i;
+        state.amm.xs[j] = x_j;
+        auto dx_j    = oldstate.amm.xs[j] - x_j;
 
-        state.amm.xs[j] = x_old[j] - dy * fee_mul;
-        if(dy < 0) {
-            state.amm.xs = x_old;
+        if(dx_j < 0) {
+            state.amm.xs = oldstate.amm.xs;
             return 0;
+        } else {
+            money fee_mul = 1.L - this->fee_2(state.amm);
+            state.amm.xs[j] = oldstate.amm.xs[j] - dx_j * fee_mul;
+            state.compute(curve);
+            update_xcp_2(oldstate, state);
+            return dx_j;
         }
-        state.compute(curve);
-
-        update_xcp_2(oldstate, state);
-        return dy;
     }
 
     void ma_recorder(u64 t, const Prices &price_vector) {
