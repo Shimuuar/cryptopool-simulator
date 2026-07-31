@@ -16,7 +16,6 @@
 #include <fstream>
 #include <iomanip>
 #include "json.hpp"
-#include <deque>
 
 using nlohmann::json;
 using std::vector, std::string, std::pair, std::sort, std::map, std::min, std::max;
@@ -306,13 +305,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     money APY_boost = 0.0;
     money APY_boost_2 = 0.0;
     money APR_geo_mean = 0.0;
-    // Moving 1-month window geometric-mean APY tracking
-    constexpr u64 TW_APR_SECONDS = 2 * 30 * 86400;  // time window for APR_geo_mean
-    constexpr money TW_APR_PER_YEAR = (365.L * 86400.L) / TW_APR_SECONDS;
-    std::deque<std::pair<u64, money>> xcp_history;
-    money sum_log_tw_apr = 0;
-    money tw_apr = 0;
-    long long n_monthly_samples = 0;
 
     FILE *out_file = nullptr;
     if (log) {
@@ -441,22 +433,8 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         APY         = powl(ARU_x, ARU_y) - 1.L;
         APY_boost   = powl(ideal_vp            / this->boost_integral, ARU_y) - 1.L;
         APY_boost_2 = powl(xcp_profit_real_adj / this->boost_integral, ARU_y) - 1.L;
-        // Moving 1-month window geometric-mean APR
-        xcp_history.push_back({d.t, xcp_profit_real_adj / this->boost_integral});
-        // Advance front to the closest entry at or before (d.t - TW_APR_SECONDS)
-        while (xcp_history.size() > 1 &&
-               xcp_history[1].first <= d.t - TW_APR_SECONDS) {
-            xcp_history.pop_front();
-        }
-        if (d.t - xcp_history.front().first >= TW_APR_SECONDS) {
-            money tw_growth = (xcp_profit_real_adj / this->boost_integral) / xcp_history.front().second;
-            tw_apr = max((tw_growth - 1.L) * TW_APR_PER_YEAR, 1e-20L);
-            sum_log_tw_apr += logl(tw_apr);
-            n_monthly_samples++;
-            APR_geo_mean = expl(sum_log_tw_apr / n_monthly_samples);
-        }
         if (i % 1024 == 0 && log) {
-            printf("t=%lu %.1Lf%%\ttrades: 0\tAMM: %.5Lf\tTarget: %.5Lf\tVol: %.4Lf\tPR:%.2Lf\txCP-growth: {%.10Lf}\tAPY:%.1Lf%%\ttw_apr:%.1Lf%%\tfee:%.3Lf%% .\n",
+            printf("t=%lu %.1Lf%%\ttrades: 0\tAMM: %.5Lf\tTarget: %.5Lf\tVol: %.4Lf\tPR:%.2Lf\txCP-growth: {%.10Lf}\tAPY:%.1Lf%%\ttw_apr:0.0%%\tfee:%.3Lf%% .\n",
                    d.t,
                    100.L * i / total_elements,
                    last,
@@ -465,7 +443,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                    (xcp_profit_real - 1.) / (xcp_profit - 1.L),
                    xcp_profit_real,
                    APY * 100.L,
-                   tw_apr * 100.L,
                    compute_fee(state.amm) * 100.L);
         }
 
