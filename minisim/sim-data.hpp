@@ -31,6 +31,8 @@ public:
     virtual size_t size() const = 0;
     // Pointer to buffer with data
     virtual const price_point* array() const = 0;
+    // Compute initial price scale
+    Prices initialPriceScale() const;
     
     virtual ~TradeDataArray() = default;
 };

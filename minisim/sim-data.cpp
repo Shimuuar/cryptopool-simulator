@@ -115,6 +115,17 @@ std::vector<OHLC> get_data(std::string const &fname) {
 // ----------------------------------------------------------------
 // Data preprocessing
 
+Prices TradeDataArray::initialPriceScale() const {
+    if( size() == 0 ) {
+        throw std::runtime_error("Empty data vector");
+    }
+    Prices p;
+    p.p[0] = 1.L;
+    p.p[1] = array()[0].price;
+    return p;
+}
+
+
 namespace {
     class TradeDataVector: public TradeDataArray {
     public:
@@ -178,3 +189,4 @@ TradeDataArray* preprocessOHLC(const std::vector<OHLC>& all_trades, int last_ele
     }
     return new TradeDataVector(std::move(out));
 }
+

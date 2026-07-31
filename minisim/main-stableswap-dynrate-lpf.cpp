@@ -27,19 +27,7 @@ static inline money mabs(money val) noexcept {
 }
 
 
-
-
-Prices get_price_vector(TradeDataArray const &data) {
-    if( data.size() == 0 ) {
-        throw std::runtime_error("Empty data vector");
-    }
-    Prices p;
-    p.p[0] = 1.L;
-    p.p[1] = data.array()[0].price;
-    return p;
-}
-
-TradeDataArray* get_all(json const &jin, int last_elems, Prices& price_vector) {
+TradeDataArray* get_all(json const &jin, int last_elems) {
     if( jin["datafile"].size() != 1 ) {
         std::cerr << "Minisim: only 2-coin pools are supported\n";
         exit(1);
@@ -48,7 +36,6 @@ TradeDataArray* get_all(json const &jin, int last_elems, Prices& price_vector) {
     printf("using file '%s'\n", name.c_str());
     vector<OHLC> all_trades = get_data(name);
     TradeDataArray* arr = preprocessOHLC(all_trades, last_elems);
-    price_vector = get_price_vector(*arr);
     return arr;
 }
 
@@ -684,9 +671,10 @@ int main(int argc, char **argv) {
     }
 
     printf("Total %d configurations will be processed in %d threads\n", configurations, THREADS);
-    Prices price_vector;
+
     std::unique_ptr<TradeDataArray> test_data(
-        get_all(jin, LAST_ELEMS, price_vector));
+        get_all(jin, LAST_ELEMS));
+    Prices price_vector = test_data->initialPriceScale();
     double time_start = get_total_time();
     double wall_time_start = get_wall_time();
 
