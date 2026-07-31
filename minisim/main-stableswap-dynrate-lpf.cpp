@@ -296,7 +296,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     money total_vol = 0;
     FullAMMState state;
     state.amm = state0;
-    state.xcp = curve.get_xcp_2(state.amm);
+    state.compute(curve);
     money last_prices = curve.price_2(state.amm);
     money imbalance_integral = 0;
     money APY = 0.0;
