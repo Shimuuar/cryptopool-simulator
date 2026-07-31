@@ -282,7 +282,6 @@ money Trader::step_for_price_2(const AMMState& state0, money p_min, money p_max,
 
 
 void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
-    long double last_time_tweak_price = 0;
     const size_t total_elements = simdata->test_data->size();
     const price_point* mapped_data = simdata->test_data->array();
     money xcp_profit_real_prev = 1.L;
@@ -308,22 +307,18 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         out_file = fopen("detailed-output.json", "w");
         fprintf(out_file, "[");
     }
+    assert(total_elements > 0 );
+    //
     constexpr int a = 0;
     constexpr int b = 1;
-    money last = price_oracle[b] / price_oracle[a];
-    // Accumulator: sum of dt where relative deviation exceeds threshold
-
-    assert(total_elements > 0 );
-    const u64 start_t = mapped_data[0].t;
-
+    money       last                  = price_oracle[b] / price_oracle[a];
+    const u64   start_t               = mapped_data[0].t;
+    long double last_time_tweak_price = mapped_data[0].t;
+    this->t = start_t;
+    //
     for (size_t i = 0; i < total_elements; i++) {
         long double last_time = 0;
         price_point d = mapped_data[i];
-
-        if (i == 0) {
-            last_time_tweak_price = d.t;
-            this->t = d.t;
-        }
         if( i > 0 ) {
             last_time = d.t - mapped_data[i-1].t;
         }
