@@ -155,6 +155,22 @@ struct Fee {
 };
 
 
+// Price oracle used by AMM. This struct carry parameter of oracle and
+struct PriceOracle {
+    struct State {
+        void record(u64 t, const Prices& prices);
+
+        money  ma_half_time;
+        u64    time;
+        Prices price;
+    };
+
+    // Initialize oracle with given set of prices and starting time
+    State init(u64 t, const Prices& prices) const;
+
+    money ma_half_time;
+};
+
 // ----------------------------------------------------------------
 // Helper
 

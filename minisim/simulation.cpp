@@ -215,6 +215,25 @@ money Fee::localBoostRate(const AMMState& state) const {
 
 
 
+PriceOracle::State PriceOracle::init(u64 t, const Prices& prices) const {
+    PriceOracle::State o;
+    o.ma_half_time = ma_half_time;
+    o.time         = t;
+    o.price        = prices;
+    return o;
+}
+
+void PriceOracle::State::record(u64 t, const Prices& trade_price) {
+    if (t > time) {
+        money alpha = powl(0.5, ((money)(t - time) / ma_half_time));
+        alpha = std::min(alpha, 1.L);
+        const size_t k = 1;
+        price.p[1] = trade_price[k] * (1 - alpha) + price.p[1] * alpha;
+        time = t;
+    }
+}
+
+
 std::ostream& operator<<(std::ostream& o, const Tokens& tok) {
     o << '[' << tok[0] << ", " << tok[1] << ']';
     return o;
