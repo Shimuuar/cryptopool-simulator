@@ -47,7 +47,9 @@ struct TokensXP {
 // State of AMM. It's fully described by amount of tokens and price
 // scale
 struct AMMState {
+    // Unitialized 
     AMMState() = default;
+    // Create AMM in equilibrium from invariant D and price scale.
     AMMState(money D, const Prices& p) :
         price(p)
     {
@@ -68,11 +70,11 @@ struct AMMState {
     Tokens xs;    // Amount of tokens in AMM
 };
 
-// AMM state with some values cached
+// AMM state together with few cached values
 struct FullAMMState {
     AMMState amm;
-    money    xcp;
-    money    price;
+    money    xcp;    // X[cp]
+    money    price;  // Current AMM price
 
     void compute(const Curve& curve);
 
@@ -102,6 +104,7 @@ public:
     money gamma;
 };
 
+
 // Single trade peformed by pool.
 struct Trade {
     enum Dir { BUY, SELL };
@@ -128,6 +131,32 @@ struct Trade {
     int   i_buy;  // Index of bought token
     int   i_sell; // Index of sold token
 };
+
+
+
+// Interface for computing fee _and_ boost rate. They seems to be
+// rather interwined
+struct Fee {
+    // FIXME: Make fee an interface
+
+    // Compute fee for a given state of AMM
+    money computeFee(const AMMState& state) const;
+
+    // Compute fee for tentative trade
+    money computeFee(const AMMState& state, const Trade& trade) const;
+
+    money localBoostRate(const AMMState& state) const;
+    
+    money mid_fee;
+    money out_fee;
+    money fee_gamma;
+    money boost_rate;
+    money boost_mul;
+};
+
+
+// ----------------------------------------------------------------
+// Helper
 
 std::ostream& operator<<(std::ostream&, const Tokens&);
 std::ostream& operator<<(std::ostream&, const Prices&);

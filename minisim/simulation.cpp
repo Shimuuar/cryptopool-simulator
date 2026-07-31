@@ -179,6 +179,42 @@ money Trade::amountFor(int i) const {
 }
 
 
+
+static money reduction_coefficient_2(const TokensXP &x, money gamma) {
+    money K = 1.L;
+    money S = 0.L;
+    for (size_t i = 0; i < 2; i++) S += x[i]; // = sum(x)
+    for (size_t i = 0; i < 2; i++)  {
+        K *= 2 * x[i] / S;
+    }
+    if (gamma > 0) {
+        K = gamma * K / (gamma * K + 1.L - K);
+    }
+    return K;
+}
+
+money Fee::computeFee(const AMMState& state) const {
+    TokensXP xp;
+    state.getXP(xp);
+    auto f = reduction_coefficient_2(xp, fee_gamma);
+    return (mid_fee * f + out_fee * (1.L - f));
+}
+
+money Fee::computeFee(const AMMState& state, const Trade& trade) const {
+    AMMState st = state.applyTrade(trade);
+    return computeFee(st);
+}
+
+money Fee::localBoostRate(const AMMState& state) const {
+    auto local_boost_rate = boost_rate;
+    if (mid_fee < out_fee) {
+        local_boost_rate *= 1 + (computeFee(state) - mid_fee) / (out_fee - mid_fee) * (boost_mul - 1);
+    }
+    return local_boost_rate;
+}
+
+
+
 std::ostream& operator<<(std::ostream& o, const Tokens& tok) {
     o << '[' << tok[0] << ", " << tok[1] << ']';
     return o;

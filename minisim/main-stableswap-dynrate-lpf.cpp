@@ -204,19 +204,6 @@ money geometric_mean_2(money const *x) {
     return sqrtl(x[0] * x[1]);
 }
 
-static auto reduction_coefficient_2(const TokensXP &x, money gamma) {
-    money K = 1.L;
-    money S = 0.L;
-    for (size_t i = 0; i < 2; i++) S += x[i]; // = sum(x)
-    for (size_t i = 0; i < 2; i++)  {
-        K *= 2 * x[i] / S;
-    }
-    if (gamma > 0) {
-        K = gamma * K / (gamma * K + 1.L - K);
-    }
-    return K;
-}
-
 
 
 struct extra_data {
@@ -242,26 +229,28 @@ struct simulation_data {
 
 struct Trader {
     Trader(json const &jconf, const Prices &p0) :
-        mid_fee(jconf["mid_fee"]),
-        out_fee(jconf["out_fee"]),
-        fee_gamma(jconf["fee_gamma"]),
         ext_fee(jconf["ext_fee"]),
         gas_fee(jconf["gas_fee"]),
         curve(jconf["A"], jconf["gamma"]),
         state0(jconf["D"], p0)
     {
+        fee_model.mid_fee   = jconf["mid_fee"];
+        fee_model.out_fee   = jconf["out_fee"];
+        fee_model.fee_gamma = jconf["fee_gamma"];
+        fee_model.boost_mul = jconf["boost_mul"];
+        fee_model.boost_rate = jconf["boost_rate"];
+        fee_model.boost_rate = fee_model.boost_rate / (86400L * 365L);
+        
         money D = jconf["D"];
         adjustment_step = jconf["adjustment_step"];
         allowed_extra_profit = jconf["allowed_extra_profit"];
         ma_half_time = jconf["ma_half_time"];
 
-        this->boost_rate = jconf["boost_rate"];
-        this->boost_mul = jconf["boost_mul"];
         if (jconf.contains("lp_profit_fraction"))
             this->lp_profit_fraction = jconf["lp_profit_fraction"];
         else
             this->lp_profit_fraction = 0.5L;
-        this->boost_rate = this->boost_rate / (86400L * 365L);
+
         this->boost_integral = 1.L;
         log = jconf["log"];
         this->price_oracle = p0;
@@ -274,15 +263,11 @@ struct Trader {
     }
 
     money compute_fee(const AMMState& state) {
-        TokensXP xp;
-        state.getXP(xp);
-        auto f = reduction_coefficient_2(xp, fee_gamma);
-        return (mid_fee * f + out_fee * (1.L - f));
+        return fee_model.computeFee(state);
     }
 
     money compute_fee(const AMMState& state, const Trade& trade) {
-        AMMState st = state.applyTrade(trade);
-        return compute_fee(st);
+        return fee_model.computeFee(state, trade);
     }
 
     money step_for_price_2(const AMMState& state, money p_min, money p_max, money vol, money ext_vol);
@@ -320,13 +305,9 @@ struct Trader {
     money allowed_extra_profit;
     int log;
     int ma_half_time;
-    const money mid_fee;
-    const money out_fee;
-    const money fee_gamma;
+    Fee fee_model;
     const money ext_fee;
     const money gas_fee;
-    money boost_rate;
-    money boost_mul;
     money boost_integral;
     money lp_profit_fraction;
     bool not_adjusted;
@@ -589,13 +570,10 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         // ==== Fini ====
         state = state_price;
 
-        auto local_boost_rate = this->boost_rate;
-        if (mid_fee < out_fee)
-            local_boost_rate *= 1 + (compute_fee(state.amm) - mid_fee) / (out_fee - mid_fee) * (this->boost_mul - 1);
-
         // Boost with special donations to the pool
-        if (this->boost_rate > 0) {
-            auto _boost = (1.L + last_time * local_boost_rate);
+        money local_boost_rate = fee_model.localBoostRate(state.amm);
+        if (local_boost_rate > 0) {
+            money _boost = (1.L + last_time * local_boost_rate);
             state.amm.xs[0] = state.amm.xs[0] * _boost;
             state.amm.xs[1] = state.amm.xs[1] * _boost;
             state.compute(curve);
