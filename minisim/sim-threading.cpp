@@ -176,3 +176,7 @@ void WorkQueue::join() {
 void WorkQueue::enqueue(Workload* w) {
     impl->queue.push(std::shared_ptr<Workload>(w));
 }
+
+void print_clock(std::string const &mesg, double start, double end) {
+    printf("%s %.3lf sec\n", mesg.c_str(), double(end - start));
+}

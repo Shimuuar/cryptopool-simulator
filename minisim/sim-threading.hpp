@@ -2,6 +2,7 @@
 
 #include <pthread.h>
 #include <vector>
+#include <string>
 #include <memory>
 
 /// Get sum of current thread's user and system time
@@ -13,7 +14,8 @@ double get_total_time();
 /// Get all clock time
 double get_wall_time();
 
-
+// Print timing
+void print_clock(std::string const &mesg, double start, double end);
 
 // Closure for parallel execution.
 class Workload {

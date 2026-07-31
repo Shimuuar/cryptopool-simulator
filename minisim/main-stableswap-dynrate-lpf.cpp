@@ -1,6 +1,7 @@
 #include "simulation.hpp"
 #include "sim-threading.hpp"
 #include "sim-util.hpp"
+#include "sim-data.hpp"
 
 #include <iostream>
 #include <cassert>
@@ -22,125 +23,20 @@ using nlohmann::json;
 using std::vector, std::string, std::pair, std::sort, std::map, std::min, std::max;
 
 
-static void print_clock(string const &mesg, double start, double end) {
-    printf("%s %.3lf sec\n", mesg.c_str(), double(end - start));
-}
-
-// OHLC candlesticks
-struct trade_data {
-    u64 t = 0;         // 0
-    money open = 0;    // 1
-    money high = 0;    // 2
-    money low = 0;     // 3
-    money close = 0;   // 4
-    money volume = 0;  // 5
-    void print() const {
-        printf("{ open: %.6Lf, high: %.6Lf low: %.6Lf close: %.6Lf t: %lu, volume: %.6Lf } ",
-               this->open, this->high, this->low, this->close, this->t, this->volume);
-    }
-};
-
-// For simulation we need only triple (time,price,volume)
-struct price_point {
-    u64   t;
-    money price;
-    money volume;
-};
-
 static inline money mabs(money val) noexcept {
     return val >= 0 ? val : -val;
 }
 
-class TradeDataArray {
-public:
-    virtual size_t size() const = 0;
-    virtual const price_point* array() const = 0;
-    virtual ~TradeDataArray() = default;
-};
-
-class TradeDataVector: public TradeDataArray {
-public:
-    TradeDataVector(const std::vector<price_point>& vec) :
-        m_vec(vec)
-    {}
-    TradeDataVector(std::vector<price_point>&& vec) :
-        m_vec(vec)
-    {}
-    virtual ~TradeDataVector() = default;
-
-    virtual size_t             size()  const { return m_vec.size(); }
-    virtual const price_point* array() const { return &m_vec[0]; }
-private:
-    std::vector<price_point> m_vec;
-};
 
 
 
-// py: returns list of dicts ['t'->u64, 'open'->float, 'high'->float, 'low'->float, 'close'->float, 'volume'->float]
-// c++ returns vector of struct datum
-vector<trade_data> get_data(std::string const &fname) {
-    auto start_time = get_thread_time();
-    auto name_to_open = "download/" + fname + ".json";
-    printf("parsing %s\n", name_to_open.c_str());
-    MMappedFile mf( name_to_open );
-    vector<trade_data> ret;
-    // FIXME: We may well go past data
-    auto p = mf.buffer();
-    if (*p == '[') p++; // skip initial '[';
-    auto scan_double = [] (const unsigned char *p, long double *d) {
-        if (*p == '"') p++;
-        *d = atof((char *)p);
-        while (*p != '"' && *p!= ' ' && *p != ',' && *p != ']') p++;
-        while (*p == ',' || *p == ' ' || *p == '"') p++;
-        return p;
-    };
-    auto scan_u64 = [] (const unsigned char *p, u64 *d) {
-        u64 ret = 0;
-        while (*p >= '0' && *p <= '9') {
-            ret = ret * 10 + *p - '0';
-            p++;
-        }
-        while (*p == ',' || *p == ' ') p++;
-        *d = ret;
-        return p;
-    };
-    while (*p != ']') {
-        // [1503443580000, "3984.00000000", "3984.00000000", "3984.00000000", "3984.00000000", "0.46619400", 1503443639999, "1857.31689600", 2, "0.00000000", "0.00000000", "11761.90492277"],
-        if (*p == '[') {
-            trade_data d;
-            p++;
-            p = scan_u64(p, &d.t);
-            if (d.t > 10000000000) {
-                d.t /= 1000;
-            }
-            p = scan_double(p, &d.open);
-            p = scan_double(p, &d.high);
-            p = scan_double(p, &d.low);
-            if (d.high < d.low) {
-                auto _high = d.low;
-                d.low = d.high;
-                d.high = _high;
-            }
-            p = scan_double(p, &d.close);
-            p = scan_double(p, &d.volume);
-            ret.push_back(d);
-            while (*p != ']') p++;
-            p++; // skip ']'
-        } else p++;
-    }
-    auto end_time = get_thread_time();
-    printf("%s: load %zu elements\n", name_to_open.c_str(), ret.size());
-    print_clock("parsing took", start_time, end_time);
-    return ret;
-}
-
-Prices get_price_vector(vector<price_point> const &data) {
-    if( data.empty() ) {
+Prices get_price_vector(TradeDataArray const &data) {
+    if( data.size() == 0 ) {
         throw std::runtime_error("Empty data vector");
     }
     Prices p;
     p.p[0] = 1.L;
-    p.p[1] = data[0].price;
+    p.p[1] = data.array()[0].price;
     return p;
 }
 
@@ -149,55 +45,12 @@ TradeDataArray* get_all(json const &jin, int last_elems, Prices& price_vector) {
         std::cerr << "Minisim: only 2-coin pools are supported\n";
         exit(1);
     }
-    vector<trade_data> all_trades;
-
     string name = jin["datafile"][0];
-    all_trades = get_data(name);
     printf("using file '%s'\n", name.c_str());
-
-    u64 min_time = 1ull << 63;
-    u64 max_time = 0;
-    for (auto const &t: all_trades) {
-        min_time = min(min_time, t.t);
-        max_time = max(max_time, t.t);
-    }
-    vector<price_point> out;
-
-    for (auto &trade: all_trades) {
-        if (trade.t >= min_time && trade.t <= max_time) {
-            price_point trade_min;
-            price_point trade_max;
-
-            // (1, 2) min
-            // (0, 2) min
-            // (0, 1) min
-            // (0, 1) max
-            // (0, 2) max
-            // (1, 2) max
-            trade_min.t = trade.t - 1 * 10 + 5;
-            trade_max.t = trade.t + 1 * 10 - 5;
-            // no halving here - volumes are later halved in decision-making
-            trade_min.volume = trade.volume;
-            trade_max.volume = trade.volume;
-
-            if (mabs(trade.open - trade.low) + mabs(trade.close - trade.high) < mabs(trade.open - trade.high) + mabs(trade.close - trade.low)) {
-                trade_min.price = trade.low;
-                trade_max.price = trade.high;
-            } else {
-                trade_min.price = trade.high;
-                trade_max.price = trade.low;
-            }
-
-            out.push_back(trade_min);
-            out.push_back(trade_max);
-        }
-    }
-    if (last_elems > 0) {
-        printf("Trimming: use last %d elements\n", last_elems);
-        out.erase(out.begin(), out.begin() + out.size() - last_elems);
-    }
-    price_vector = get_price_vector(out);
-    return new TradeDataVector(std::move(out));
+    vector<OHLC> all_trades = get_data(name);
+    TradeDataArray* arr = preprocessOHLC(all_trades, last_elems);
+    price_vector = get_price_vector(*arr);
+    return arr;
 }
 
 money geometric_mean_2(money const *x) {
