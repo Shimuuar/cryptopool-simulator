@@ -26,7 +26,6 @@ static inline money mabs(money val) noexcept {
     return val >= 0 ? val : -val;
 }
 
-
 TradeDataArray* get_all(json const &jin, int last_elems) {
     if( jin["datafile"].size() != 1 ) {
         std::cerr << "Minisim: only 2-coin pools are supported\n";
@@ -37,10 +36,6 @@ TradeDataArray* get_all(json const &jin, int last_elems) {
     vector<OHLC> all_trades = get_data(name);
     TradeDataArray* arr = preprocessOHLC(all_trades, last_elems);
     return arr;
-}
-
-money geometric_mean_2(money const *x) {
-    return sqrtl(x[0] * x[1]);
 }
 
 
@@ -291,7 +286,6 @@ money Trader::step_for_price_2(const AMMState& state0, money p_min, money p_max,
 
 
 void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
-    const size_t N = 2;
     long double last_time_tweak_price = 0;
     const size_t total_elements = simdata->test_data->size();
     const price_point* mapped_data = simdata->test_data->array();
@@ -341,12 +335,9 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             last_time_tweak_price = d.t;
             this->t = d.t;
         }
-
         if( i > 0 ) {
             last_time = d.t - mapped_data[i-1].t;
         }
-
-        const money ext_vol = money(d.volume * price_oracle[b]); //  <- now all is in USD
 
         auto apply_tweak_trade = [&](const FullAMMState& oldst, FullAMMState& st) {
             money ps_before = st.amm.price[1];
@@ -356,24 +347,28 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             last_time_tweak_price = d.t;
         };
 
-        // ==== Trade 1 ====
-        FullAMMState state_trade = state; // State after trade
-        FullAMMState state_price = state; // State after price tweak
-        Trade trade;     // On-curve trade
-        Trade trade_fee; // Trade after fee is appplied
+        // Attempt to make arbitrage trade
         {
-            bool trade_happened = false;
+            FullAMMState state_trade = state; // State after trade
+            FullAMMState state_price = state; // State after price tweak
+            Trade trade;                      // On-curve trade
+            Trade trade_fee;                  // Trade after fee is appplied
+            bool  trade_happened = false;
+            const money ext_vol = money(d.volume * price_oracle[b]); //  <- now all is in USD
+            // Check whether trade in either direction is possible.
             const money max_price = d.price * (1 - ext_fee);
             const money min_price = d.price * (1 + ext_fee);
-            // External Y price is higher. AMM will buy X from and
-            // sell Y to arbitrageurs
             if ((max_price != 0) & (max_price > state.price)) {
+                // External Y price is higher. AMM will buy X from and
+                // sell Y to arbitrageurs
                 auto step = step_for_price_2(state_trade.amm, 0, max_price, 0, ext_vol);
                 if (step > 0) {
                     trade_happened = true;
                     trade = Trade(Trade::BUY, step, a, b, state.amm, curve);
                 }
             } else if((min_price != 0) && (min_price < state.price)) {
+                // External Y price is lower. AMM will buy Y from and
+                // sell X to arbitrageurs
                 auto step = step_for_price_2(state_trade.amm, min_price, 0, 0, ext_vol);
                 if (step > 0) {
                     trade_happened = true;
@@ -390,7 +385,8 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                 const money trade_dx = trade.amountFor(b);
                 const money p_before = state.price;
                 const money p_after  = state_trade.price;
-                volume += trade_dx / (state_trade.amm.xs[b] + state_trade.amm.xs[a] / p_after) * N / 2;
+                volume += trade_dx
+                        / (state_trade.amm.xs[b] + state_trade.amm.xs[a] / p_after);
                 const money _slippage = (trade_dx * (p_before + p_after))
                                       / (2.L * (mabs(p_before - p_after)) * state_trade.amm.xs[b]);
                 // Slippage
@@ -403,11 +399,11 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                 // Apply correction to a price scale
                 state_price = state_trade;
                 apply_tweak_trade(state_trade, state_price);
-                last = state_trade.price;
+                last  = state_trade.price;
+                state = state_price;
             }
         }
-        // ==== Fini ====
-        state = state_price;
+
 
         // Boost with special donations to the pool
         money local_boost_rate = fee_model.localBoostRate(state.amm);
