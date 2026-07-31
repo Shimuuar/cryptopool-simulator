@@ -54,7 +54,6 @@ struct extra_data {
 struct simulation_data {
     int num = 0;
     json const *jconf = nullptr;
-    const Prices *price_vector = nullptr;
     const TradeDataArray *test_data = nullptr;
     extra_data result;
 };
@@ -557,7 +556,7 @@ static bool json_save(string const &name, json const &j) {
 
 
 bool simulation(simulation_data *data) {
-    Trader trader(*(data->jconf), *(data->price_vector));
+    Trader trader(*(data->jconf), data->test_data->initialPriceScale());
     auto start_simulation = get_thread_time();
     printf("Configuration %d: begin simulation\n", data->num);
     extra_data extdata;
@@ -643,8 +642,7 @@ int main(int argc, char **argv) {
 
     std::unique_ptr<TradeDataArray> test_data(
         get_all(jin, LAST_ELEMS));
-    Prices price_vector = test_data->initialPriceScale();
-    double time_start = get_total_time();
+    double time_start      = get_total_time();
     double wall_time_start = get_wall_time();
 
     WorkQueue work_queue(THREADS);
@@ -653,7 +651,6 @@ int main(int argc, char **argv) {
         simulation_data cd;
         cd.num = i;
         cd.test_data = &*test_data;
-        cd.price_vector = &price_vector;
         cd.jconf = &jin["configuration"][i];
         work_queue.enqueue(new SimulationTask(cd, &result));
     }
