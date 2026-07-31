@@ -87,7 +87,6 @@ struct Trader {
         this->boost_integral = 1.L;
         log = jconf["log"];
         this->price_oracle = p0;
-        this->last_price   = p0;
         this->dx = D * 1e-8L;
         this->xcp_profit = 1.L;
         this->xcp_profit_real = 1.L;
@@ -129,7 +128,6 @@ struct Trader {
     void simulate(simulation_data *simdata, extra_data *extdata);
 
     Prices price_oracle;
-    Prices last_price;
     u64 t;
     money dx;
     money xcp_profit;
