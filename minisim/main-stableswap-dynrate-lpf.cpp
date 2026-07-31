@@ -350,15 +350,15 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                 // Apply fee and make trade
                 trade_fee   = trade.applyFee(compute_fee(state_price.amm, trade));
                 state_trade = state_price.applyTrade(trade_fee, curve);
-                update_xcp_2(state_price, state_trade);
+                update_xcp_2(state, state_trade);
                 //
                 total_vol += trade.amountFor(a) * oracle.price[a];
-                const money trade_dx = trade.amountFor(b);
+                const money trade_dy = trade.amountFor(b);
                 const money p_before = state.price;
                 const money p_after  = state_trade.price;
-                volume += trade_dx
+                volume += trade_dy
                         / (state_trade.amm.xs[b] + state_trade.amm.xs[a] / p_after);
-                const money _slippage = (trade_dx * (p_before + p_after))
+                const money _slippage = (trade_dy * (p_before + p_after))
                                       / (2.L * (mabs(p_before - p_after)) * state_trade.amm.xs[b]);
                 // Slippage
                 if (_slippage > 1e-10) {
@@ -388,8 +388,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         }
 
         // only tweak_price every N seconds or on trade
-        //
-        // FIXME: Contrary to comment we only tweak price on trade
         if (d.t - last_time_tweak_price >= 3600) {
             FullAMMState state_ = state; // FIXME: Work duplication!
             apply_tweak_trade(state_, state);
