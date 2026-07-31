@@ -538,25 +538,6 @@ static bool json_save(string const &name, json const &j) {
 }
 
 
-bool simulation(simulation_data *data) {
-    Trader trader(*(data->jconf), data->test_data->initialPriceScale());
-    auto start_simulation = get_thread_time();
-    printf("Configuration %d: begin simulation\n", data->num);
-    extra_data extdata;
-    trader.simulate(data, &extdata);
-    data->result = extdata;
-    //money liq_density = jout["liq_density"];
-    //money APY = jout["APY"];
-    printf("Liquidity density vs that of xyz=k: %Lf\n", extdata.liq_density);
-    printf("APY-boost: %Lf%%\n", extdata.APY_boost * 100.L);
-    printf("APY-boost-2: %Lf%%\n", extdata.APY_boost_2 * 100.L);
-    printf("APR-geo-mean: %Lf%%\n", extdata.APR_geo_mean * 100.L);
-    printf("APY: %Lf%%\n", extdata.APY * 100.L);
-    auto end = get_thread_time();
-    print_clock("Total simulation time", start_simulation, end);
-    return true;
-}
-
 class SimulationTask : public Workload {
 public:
     SimulationTask(simulation_data _simdata, json *_result) :
@@ -576,7 +557,19 @@ private:
 void SimulationTask::work() {
     int tid = 0;
     printf("[%d]: pick up configuration %d\n", tid, simdata.num);
-    simulation(&simdata);
+    Trader trader(*(simdata.jconf), simdata.test_data->initialPriceScale());
+    auto start_simulation = get_thread_time();
+    printf("Configuration %d: begin simulation\n", simdata.num);
+    extra_data extdata;
+    trader.simulate(&simdata, &extdata);
+    simdata.result = extdata;
+    printf("Liquidity density vs that of xyz=k: %Lf\n", extdata.liq_density);
+    printf("APY-boost: %Lf%%\n", extdata.APY_boost * 100.L);
+    printf("APY-boost-2: %Lf%%\n", extdata.APY_boost_2 * 100.L);
+    printf("APR-geo-mean: %Lf%%\n", extdata.APR_geo_mean * 100.L);
+    printf("APY: %Lf%%\n", extdata.APY * 100.L);
+    auto end = get_thread_time();
+    print_clock("Total simulation time", start_simulation, end);
 }
 
 void SimulationTask::fini() {
