@@ -5,6 +5,7 @@
 
 #include "simulation.hpp"
 
+
 // OHLC candlesticks >
 struct OHLC {
     u64   t      = 0; // 0

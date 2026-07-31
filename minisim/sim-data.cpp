@@ -1,6 +1,59 @@
 #include "sim-data.hpp"
-#include "sim-util.hpp"
 #include "sim-threading.hpp"
+
+#include <sys/fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#include <stdexcept>
+
+#ifndef MAP_NOCACHE
+#define MAP_NOCACHE 0
+#endif
+
+
+// ----------------------------------------------------------------
+// Data loading
+
+namespace {
+    // MMapped file opened in read-only mode.
+    class MMappedFile {
+    public:
+        explicit MMappedFile(const char* fname);
+        explicit MMappedFile(const std::string& fname) :
+            MMappedFile(fname.c_str())
+        {}
+        ~MMappedFile();
+
+        // Size of file
+        size_t      size()   { return m_size; }
+        // Underlying buffer
+        const unsigned char* buffer() { return m_ptr; }
+    private:
+        int            m_fd;
+        unsigned char *m_ptr;
+        size_t         m_size;
+    };
+
+    MMappedFile::MMappedFile(const char* name) {
+        m_fd = open(name, O_RDONLY);
+        if( m_fd < 0 ) {
+            throw std::runtime_error("Cannot open file for reading");
+        }
+        lseek(m_fd, 0, SEEK_END);
+        m_size = lseek(m_fd, 0, SEEK_CUR);
+        m_ptr  = (unsigned char*)::mmap(
+            nullptr, m_size, PROT_READ, MAP_NOCACHE|MAP_FILE|MAP_SHARED, m_fd, 0);
+        if( m_ptr == MAP_FAILED) {
+            throw std::runtime_error("mmap failed");
+        }
+    }
+
+    MMappedFile::~MMappedFile() {
+        ::munmap(m_ptr, m_size);
+        close(m_fd);
+    }
+}
+
 
 std::vector<OHLC> get_data(std::string const &fname) {
     auto start_time = get_thread_time();
@@ -58,23 +111,28 @@ std::vector<OHLC> get_data(std::string const &fname) {
     return ret;
 }
 
-namespace {
-class TradeDataVector: public TradeDataArray {
-public:
-    TradeDataVector(const std::vector<price_point>& vec) :
-        m_vec(vec)
-    {}
-    TradeDataVector(std::vector<price_point>&& vec) :
-        m_vec(vec)
-    {}
-    virtual ~TradeDataVector() = default;
 
-    virtual size_t             size()  const { return m_vec.size(); }
-    virtual const price_point* array() const { return &m_vec[0]; }
-private:
-    std::vector<price_point> m_vec;
-};
+// ----------------------------------------------------------------
+// Data preprocessing
+
+namespace {
+    class TradeDataVector: public TradeDataArray {
+    public:
+        TradeDataVector(const std::vector<price_point>& vec) :
+            m_vec(vec)
+        {}
+        TradeDataVector(std::vector<price_point>&& vec) :
+            m_vec(vec)
+        {}
+        virtual ~TradeDataVector() = default;
+
+        virtual size_t             size()  const { return m_vec.size(); }
+        virtual const price_point* array() const { return &m_vec[0]; }
+    private:
+        std::vector<price_point> m_vec;
+    };
 }
+
 
 TradeDataArray* preprocessOHLC(const std::vector<OHLC>& all_trades, int last_elems) {
     u64 min_time = 1ull << 63;
@@ -118,5 +176,5 @@ TradeDataArray* preprocessOHLC(const std::vector<OHLC>& all_trades, int last_ele
         printf("Trimming: use last %d elements\n", last_elems);
         out.erase(out.begin(), out.begin() + out.size() - last_elems);
     }
-    return new TradeDataVector(std::move(out));    
+    return new TradeDataVector(std::move(out));
 }

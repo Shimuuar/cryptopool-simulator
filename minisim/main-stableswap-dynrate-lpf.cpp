@@ -1,6 +1,5 @@
 #include "simulation.hpp"
 #include "sim-threading.hpp"
-#include "sim-util.hpp"
 #include "sim-data.hpp"
 
 #include <iostream>
