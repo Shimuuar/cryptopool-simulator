@@ -456,21 +456,17 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             APR_geo_mean = expl(sum_log_tw_apr / n_monthly_samples);
         }
         if (i % 1024 == 0 && log) {
-            try {
-                printf("t=%lu %.1Lf%%\ttrades: 0\tAMM: %.5Lf\tTarget: %.5Lf\tVol: %.4Lf\tPR:%.2Lf\txCP-growth: {%.10Lf}\tAPY:%.1Lf%%\ttw_apr:%.1Lf%%\tfee:%.3Lf%% .\n",
-                       d.t,
-                       100.L * i / total_elements,
-                       last,
-                       state.amm.price.p[1],
-                       total_vol,
-                       (xcp_profit_real - 1.) / (xcp_profit - 1.L),
-                       xcp_profit_real,
-                       APY * 100.L,
-                       tw_apr * 100.L,
-                       compute_fee(state.amm) * 100.L);
-            } catch (std::exception const &e) {
-                printf("caught '%s'\n", e.what());
-            }
+            printf("t=%lu %.1Lf%%\ttrades: 0\tAMM: %.5Lf\tTarget: %.5Lf\tVol: %.4Lf\tPR:%.2Lf\txCP-growth: {%.10Lf}\tAPY:%.1Lf%%\ttw_apr:%.1Lf%%\tfee:%.3Lf%% .\n",
+                   d.t,
+                   100.L * i / total_elements,
+                   last,
+                   state.amm.price.p[1],
+                   total_vol,
+                   (xcp_profit_real - 1.) / (xcp_profit - 1.L),
+                   xcp_profit_real,
+                   APY * 100.L,
+                   tw_apr * 100.L,
+                   compute_fee(state.amm) * 100.L);
         }
 
         if (log) {
