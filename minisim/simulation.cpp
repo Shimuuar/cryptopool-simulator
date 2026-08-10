@@ -124,11 +124,12 @@ money Curve::get_xcp_2(const AMMState& st) const {
 }
 
 
-AMMState AMMState::applyTrade(const Trade& trade) const {
-    AMMState amm(*this);
-    amm.xs[trade.i_buy]  += trade.buy;
-    amm.xs[trade.i_sell] -= trade.sell;
-    return amm;
+AMMState::AMMState(const AMMState& old,
+                   const Trade&    trade)
+{
+    *this = old;
+    xs[trade.i_buy]  += trade.buy;
+    xs[trade.i_sell] -= trade.sell;
 }
 
 void FullAMMState::compute(const Curve& curve) {
@@ -136,11 +137,12 @@ void FullAMMState::compute(const Curve& curve) {
     price = curve.price_2(amm);
 }
 
-FullAMMState FullAMMState::applyTrade(const Trade& trade, const Curve& curve) const {
-    FullAMMState st;
-    st.amm = this->amm.applyTrade(trade);
-    st.compute(curve);
-    return st;
+FullAMMState::FullAMMState(const FullAMMState &state,
+                           const Trade        &trade,
+                           const Curve        &curve) :
+    amm(state.amm, trade)
+{
+    compute(curve);
 }
 
 
@@ -201,7 +203,7 @@ money Fee::computeFee(const AMMState& state) const {
 }
 
 money Fee::computeFee(const AMMState& state, const Trade& trade) const {
-    AMMState st = state.applyTrade(trade);
+    AMMState st(state, trade);
     return computeFee(st);
 }
 

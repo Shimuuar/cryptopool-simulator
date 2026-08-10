@@ -1,5 +1,5 @@
 #pragma once
-// General API for writing arbitrage-based simulators for AMM This
+// General API for writing arbitrage-based simulators for AMM. This
 // header contain data structures and primitives for writing
 // simulators but no simulator itself.
 #include <stdint.h>
@@ -17,12 +17,13 @@ class Curve;
 class Trade;
 
 
-// Price scale in AMM. 
+// Price scale in AMM.
 struct Prices {
     static constexpr int N = 2;
     money p[N];
 
-    money operator[](int i) const { return p[i]; }
+    const money& operator[](int i) const { return p[i]; }
+    money&       operator[](int i)       { return p[i]; }
 };
 
 // Amount of tokens in AMM
@@ -31,9 +32,8 @@ struct Tokens {
     money x[N];
 
     const money& operator[](int i) const { return x[i]; }
-    money& operator[](int i) { return x[i]; }
+    money&       operator[](int i)       { return x[i]; }
 };
-
 
 // Amount of tokens after conversion by price scale
 struct TokensXP {
@@ -41,13 +41,14 @@ struct TokensXP {
     money x[N];
 
     const money& operator[](int i) const { return x[i]; }
-    money& operator[](int i) { return x[i]; }
+    money&       operator[](int i)       { return x[i]; }
 };
+
 
 // State of AMM. It's fully described by amount of tokens and price
 // scale
 struct AMMState {
-    // Unitialized 
+    // Create uninitialized AMM.
     AMMState() = default;
     // Create AMM in equilibrium from invariant D and price scale.
     AMMState(money D, const Prices& p) :
@@ -56,6 +57,11 @@ struct AMMState {
         xs.x[0] = D / 2 / price.p[0];
         xs.x[1] = D / 2 / price.p[1];
     }
+    // Create AMM from old state and trade description
+    AMMState(const AMMState& old,
+             const Trade&    trade);
+
+
 
     void getXP(TokensXP &ret) const {
         for (int i = 0; i < 2; i++) {
@@ -63,8 +69,6 @@ struct AMMState {
             assert(xs[i] > 0);
         }
     }
-    
-    AMMState applyTrade(const Trade& trade) const;
 
     Prices price; // Price scale for AMM
     Tokens xs;    // Amount of tokens in AMM
@@ -72,13 +76,19 @@ struct AMMState {
 
 // AMM state together with few cached values
 struct FullAMMState {
+    // Create uninitialized AMM
+    FullAMMState() = default;
+    // Create AMM from old state and trade
+    FullAMMState(const FullAMMState& state,
+                 const Trade&        trade,
+                 const Curve&        curve);
+
     AMMState amm;
     money    xcp;    // X[cp]
     money    price;  // Current AMM price
 
+    // Update cached values in place
     void compute(const Curve& curve);
-
-    FullAMMState applyTrade(const Trade& trade, const Curve& curve) const;
 };
 
 
@@ -88,7 +98,6 @@ public:
     Curve(money _A, money _gamma):
         A(_A), gamma(_gamma)
     {}
-
 
     money y_2(const AMMState& st, money x, int i, int j) const;
     money p_2(const AMMState& st) const;
@@ -146,7 +155,7 @@ struct Fee {
     money computeFee(const AMMState& state, const Trade& trade) const;
 
     money localBoostRate(const AMMState& state) const;
-    
+
     money mid_fee;
     money out_fee;
     money fee_gamma;

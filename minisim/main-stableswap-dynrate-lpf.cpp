@@ -317,19 +317,17 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
 
         // Attempt to make arbitrage trade
         {
-            FullAMMState state_trade = state; // State after trade
-            FullAMMState state_price = state; // State after price tweak
-            Trade trade;                      // On-curve trade
-            Trade trade_fee;                  // Trade after fee is appplied
-            bool  trade_happened = false;
-            const money ext_vol = money(d.volume * oracle.price[b]); //  <- now all is in USD
+            Trade trade;                  // On-curve trade
+            bool  trade_happened = false; // Flag to check that trade should happen
+
             // Check whether trade in either direction is possible.
+            const money ext_vol = money(d.volume * oracle.price[b]); //  <- now all is in USD
             const money max_price = d.price * (1 - ext_fee);
             const money min_price = d.price * (1 + ext_fee);
             if ((max_price != 0) & (max_price > state.price)) {
                 // External Y price is higher. AMM will buy X from and
                 // sell Y to arbitrageurs
-                auto step = step_for_price_2(state_trade.amm, 0, max_price, 0, ext_vol);
+                auto step = step_for_price_2(state.amm, 0, max_price, 0, ext_vol);
                 if (step > 0) {
                     trade_happened = true;
                     trade = Trade(Trade::BUY, step, a, b, state.amm, curve);
@@ -337,18 +335,18 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             } else if((min_price != 0) && (min_price < state.price)) {
                 // External Y price is lower. AMM will buy Y from and
                 // sell X to arbitrageurs
-                auto step = step_for_price_2(state_trade.amm, min_price, 0, 0, ext_vol);
+                auto step = step_for_price_2(state.amm, min_price, 0, 0, ext_vol);
                 if (step > 0) {
                     trade_happened = true;
-                    trade = Trade(Trade::BUY, step, b, a, state_price.amm, curve);
+                    trade = Trade(Trade::BUY, step, b, a, state.amm, curve);
                 }
             }
             if( trade_happened ) {
                 // Apply fee and make trade
-                trade_fee   = trade.applyFee(compute_fee(state_price.amm, trade));
-                state_trade = state_price.applyTrade(trade_fee, curve);
+                Trade        trade_fee   = trade.applyFee(compute_fee(state.amm, trade));
+                FullAMMState state_trade = FullAMMState(state, trade_fee, curve);
                 update_xcp_2(initial_state, state, state_trade);
-                //
+                // Update trade volumes
                 total_vol += trade.amountFor(a) * oracle.price[a];
                 const money trade_dy = trade.amountFor(b);
                 const money p_before = state.price;
@@ -365,7 +363,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                     imbalance      += mabs(logl(last / state_trade.amm.price[1])) * curve.A * last_time;
                 }
                 // Apply correction to a price scale
-                state_price = state_trade;
+                FullAMMState state_price = state_trade;
                 apply_tweak_trade(state_trade, state_price);
                 last  = state_trade.price;
                 state = state_price;
