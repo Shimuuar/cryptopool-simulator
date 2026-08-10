@@ -15,6 +15,7 @@ using money = long double;
 
 class Curve;
 class Trade;
+class AMMState;
 
 
 // Price scale in AMM.
@@ -37,6 +38,9 @@ struct Tokens {
 
 // Amount of tokens after conversion by price scale
 struct TokensXP {
+    TokensXP(const Tokens&, const Prices&);
+    TokensXP(const AMMState&);
+
     static constexpr int N = 2;
     money x[N];
 
@@ -61,14 +65,6 @@ struct AMMState {
     AMMState(const AMMState& old,
              const Trade&    trade);
 
-
-
-    void getXP(TokensXP &ret) const {
-        for (int i = 0; i < 2; i++) {
-            ret[i] = xs[i] * price[i];
-            assert(xs[i] > 0);
-        }
-    }
 
     Prices price; // Price scale for AMM
     Tokens xs;    // Amount of tokens in AMM

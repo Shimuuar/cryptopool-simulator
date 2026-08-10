@@ -4,6 +4,18 @@
 #include <cmath>
 #include <iostream>
 
+
+TokensXP::TokensXP(const Tokens& xs, const Prices& price) {
+    for (int i = 0; i < 2; i++) {
+        this->x[i] = xs[i] * price[i];
+        assert(xs[i] > 0);
+    }
+}
+
+TokensXP::TokensXP(const AMMState& st) :
+    TokensXP(st.xs, st.price)
+{}
+
 static inline money mabs(money val) noexcept {
     return val >= 0 ? val : -val;
 }
@@ -90,15 +102,13 @@ static money solve_D(money A, money gamma, const TokensXP &x) {
 
 
 money Curve::D_2(const AMMState& st) const {
-    TokensXP xp;
-    st.getXP(xp);
+    TokensXP xp(st);
     auto ret = solve_D(A, gamma, xp);
     return ret;
 }
 
 money Curve::y_2(const AMMState& st, money x, int i, int j) const {
-    TokensXP xp;
-    st.getXP(xp);
+    TokensXP xp(st);
     xp[i] = x * st.price[i];
     auto yp = solve_x(A, gamma, xp, this->D_2(st), j);
     auto ret = yp / st.price[j];
@@ -106,8 +116,7 @@ money Curve::y_2(const AMMState& st, money x, int i, int j) const {
 }
 
 money Curve::p_2(const AMMState& st) const {
-    TokensXP xp;
-    st.getXP(xp);
+    TokensXP xp(st);
     auto p = get_p_2(xp, this->D_2(st), this->A, this->gamma);
     return p;
 }
@@ -203,8 +212,7 @@ static money reduction_coefficient_2(const TokensXP &x, money gamma) {
 }
 
 money Fee::computeFee(const AMMState& state) const {
-    TokensXP xp;
-    state.getXP(xp);
+    TokensXP xp(state);
     auto f = reduction_coefficient_2(xp, fee_gamma);
     return (mid_fee * f + out_fee * (1.L - f));
 }

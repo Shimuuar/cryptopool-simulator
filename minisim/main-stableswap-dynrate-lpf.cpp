@@ -368,9 +368,8 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             apply_tweak_trade(state_, state);
         }
 
-        TokensXP _xp;
-        state.amm.getXP(_xp);
         {
+            TokensXP _xp(state.amm);
             money bal_mul = (_xp[0] + _xp[1]);
             bal_mul = 4 * _xp[0] * _xp[1] / (bal_mul * bal_mul);
             imbalance_integral += (1.L - bal_mul) * last_time;  // last_time is dt here
