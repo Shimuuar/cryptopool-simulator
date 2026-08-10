@@ -93,10 +93,6 @@ struct Trader {
 
     money step_for_price_2(const AMMState& state, money p_min, money p_max, money vol, money ext_vol);
 
-    void update_xcp_2(const FullAMMState& initial_state, const FullAMMState& oldstate, FullAMMState& state) {
-        xcp_profit += (state.xcp - oldstate.xcp) / initial_state.xcp;
-    }
-
     void tweak_price_2(const FullAMMState& initial_state,
                        const FullAMMState& oldstate,
                        FullAMMState& state, u64 t, money spot_prev,
@@ -334,7 +330,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                 // Apply fee and make trade
                 Trade        trade_fee   = trade.applyFee(fee_model.computeFee(state.amm, trade));
                 FullAMMState state_trade = FullAMMState(state, trade_fee, curve);
-                update_xcp_2(initial_state, state, state_trade);
+                xcp_profit += (state_trade.xcp - state.xcp) / initial_state.xcp;
                 // Update trade volumes
                 total_vol += trade.amountFor(a) * oracle.price[a];
                 const money trade_dy = trade.amountFor(b);
