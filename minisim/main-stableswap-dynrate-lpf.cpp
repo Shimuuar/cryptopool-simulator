@@ -91,14 +91,6 @@ struct Trader {
         this->not_adjusted = false;
     }
 
-    money compute_fee(const AMMState& state) {
-        return fee_model.computeFee(state);
-    }
-
-    money compute_fee(const AMMState& state, const Trade& trade) {
-        return fee_model.computeFee(state, trade);
-    }
-
     money step_for_price_2(const AMMState& state, money p_min, money p_max, money vol, money ext_vol);
 
     void update_xcp_2(const FullAMMState& initial_state, const FullAMMState& oldstate, FullAMMState& state) {
@@ -163,7 +155,7 @@ money Trader::step_for_price_2(const AMMState& state0, money p_min, money p_max,
 
         state.xs[_from] = x;
         state.xs[_to] = y;
-        auto fee_mul = 1.L - this->compute_fee(state);
+        auto fee_mul = 1.L - this->fee_model.computeFee(state);
 
         _dy = (x0[_to] - y) * fee_mul;
         state.xs[_to] = x0[_to] - _dy;
@@ -218,7 +210,7 @@ money Trader::step_for_price_2(const AMMState& state0, money p_min, money p_max,
 
             state.xs[_from] = x;
             state.xs[_to] = y;
-            auto fee_mul = 1.L - this->compute_fee(state);
+            auto fee_mul = 1.L - this->fee_model.computeFee(state);
 
             _dy = (x0[_to] - y) * fee_mul;
             state.xs[_to] = x0[_to] - _dy;
@@ -340,7 +332,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             }
             if( trade_happened ) {
                 // Apply fee and make trade
-                Trade        trade_fee   = trade.applyFee(compute_fee(state.amm, trade));
+                Trade        trade_fee   = trade.applyFee(fee_model.computeFee(state.amm, trade));
                 FullAMMState state_trade = FullAMMState(state, trade_fee, curve);
                 update_xcp_2(initial_state, state, state_trade);
                 // Update trade volumes
@@ -412,7 +404,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                    (xcp_profit_real - 1.) / (xcp_profit - 1.L),
                    xcp_profit_real,
                    APY * 100.L,
-                   compute_fee(state.amm) * 100.L);
+                   fee_model.computeFee(state.amm) * 100.L);
         }
 
         if (log) {
