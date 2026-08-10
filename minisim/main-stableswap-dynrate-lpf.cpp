@@ -88,7 +88,6 @@ struct Trader {
         log = jconf["log"];
         this->dx = D * 1e-8L;
         this->xcp_profit = 1.L;
-        this->xcp_profit_real = 1.L;
         this->not_adjusted = false;
     }
 
@@ -102,11 +101,8 @@ struct Trader {
 
     money step_for_price_2(const AMMState& state, money p_min, money p_max, money vol, money ext_vol);
 
-    void update_xcp_2(const FullAMMState& initial_state, const FullAMMState& oldstate, FullAMMState& state, bool only_real=false) {
-        xcp_profit_real *= state.xcp / oldstate.xcp;
-        if (not only_real) {
-            xcp_profit += (state.xcp - oldstate.xcp) / initial_state.xcp;
-        }
+    void update_xcp_2(const FullAMMState& initial_state, const FullAMMState& oldstate, FullAMMState& state) {
+        xcp_profit += (state.xcp - oldstate.xcp) / initial_state.xcp;
     }
 
     void tweak_price_2(const FullAMMState& initial_state,
@@ -120,7 +116,6 @@ struct Trader {
     PriceOracle price_oracle;
     money dx;
     money xcp_profit;
-    money xcp_profit_real;
     money adjustment_step;
     money allowed_extra_profit;
     int log;
@@ -385,7 +380,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             state.amm.xs[0] = state.amm.xs[0] * _boost;
             state.amm.xs[1] = state.amm.xs[1] * _boost;
             state.compute(curve);
-            xcp_profit_real *= _boost;
             this->boost_integral *= _boost;
         }
 
@@ -413,6 +407,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         APY_boost   = powl(ideal_vp            / this->boost_integral, ARU_y) - 1.L;
         APY_boost_2 = powl(xcp_profit_real_adj / this->boost_integral, ARU_y) - 1.L;
         if (i % 1024 == 0 && log) {
+            money xcp_profit_real = state.xcp / initial_state.xcp;
             printf("t=%lu %.1Lf%%\ttrades: 0\tAMM: %.5Lf\tTarget: %.5Lf\tVol: %.4Lf\tPR:%.2Lf\txCP-growth: {%.10Lf}\tAPY:%.1Lf%%\ttw_apr:0.0%%\tfee:%.3Lf%% .\n",
                    d.t,
                    100.L * i / total_elements,
@@ -426,6 +421,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         }
 
         if (log) {
+            money xcp_profit_real = state.xcp / initial_state.xcp;
             fprintf(out_file, "{\"t\": %lu, \"token0\": %.6Le, \"token1\": %.6Le, \"price_oracle\": %.6Le, \"price_scale\": %.6Le, \"profit\": %.6Le, \"xcp\": %.6Le, \"boost_rate\": %.6Le}",
                     d.t,
                     state.amm.xs[0],
@@ -492,11 +488,15 @@ void Trader::tweak_price_2(const FullAMMState& initial_state,
         // Already close to the target price
         return;
     }
-    if (not not_adjusted and (xcp_profit_real > xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction) + allowed_extra_profit)) {
-        not_adjusted = true;
-    }
-    if (not not_adjusted) {
-        return;
+
+    {
+        money xcp_profit_real = state.xcp / initial_state.xcp;
+        if (not not_adjusted and (xcp_profit_real > xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction) + allowed_extra_profit)) {
+            not_adjusted = true;
+        }
+        if (not not_adjusted) {
+            return;
+        }
     }
 
     FullAMMState old_state = state;
@@ -505,16 +505,15 @@ void Trader::tweak_price_2(const FullAMMState& initial_state,
         auto p_real   = oracle.price[1];
         state.amm.price.p[1] = p_target + _adjustment_step * (p_real - p_target) / norm;
     }
-    auto old_profit = xcp_profit_real;
     state.compute(curve);
 
-    update_xcp_2(initial_state, oldstate, state, true);
-
-    if (xcp_profit_real <= xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction)) {
-        //  If real profit is less than equilibrium - revert params back
-        state = old_state;
-        xcp_profit_real = old_profit;
-        not_adjusted = false;
+    {
+        money xcp_profit_real = state.xcp / initial_state.xcp;
+        if (xcp_profit_real <= xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction)) {
+            //  If real profit is less than equilibrium - revert params back
+            state = old_state;
+            not_adjusted = false;
+        }
     }
 }
 
