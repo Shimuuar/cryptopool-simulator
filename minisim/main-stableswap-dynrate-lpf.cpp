@@ -42,7 +42,6 @@ TradeDataArray* get_all(json const &jin, int last_elems) {
 struct extra_data {
     money APY = 0;
     money APY_boost = 0;
-    money APY_boost_2 = 0;
     money APR_geo_mean = 0;
     money liq_density = 0;
     money slippage = 0;
@@ -253,8 +252,6 @@ money Trader::step_for_price_2(const AMMState& state0, money p_min, money p_max,
 void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     const size_t total_elements = simdata->test_data->size();
     const price_point* mapped_data = simdata->test_data->array();
-    money xcp_profit_real_prev = 1.L;
-    money xcp_profit_real_adj = 1.L;
     money slippage = 0;
     money imbalance = 0;
     money antislippage = 0;
@@ -267,7 +264,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     money imbalance_integral = 0;
     money APY = 0.0;
     money APY_boost = 0.0;
-    money APY_boost_2 = 0.0;
     money boost_integral = 1.0;
 
     FILE *out_file = nullptr;
@@ -380,14 +376,10 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         }
 
         money ideal_vp = 1 + (xcp_profit - 1) * lp_profit_fraction;
-        xcp_profit_real_adj *= (ideal_vp / xcp_profit_real_prev);
-        xcp_profit_real_prev = ideal_vp;
+        money ARU_y    = (86400.L * 365.L / (d.t - start_t + 1.L));
+        APY            = powl(ideal_vp,                  ARU_y) - 1.L;
+        APY_boost      = powl(ideal_vp / boost_integral, ARU_y) - 1.L;
 
-        long double ARU_x = ideal_vp;
-        long double ARU_y = (86400.L * 365.L / (d.t - start_t + 1.L));
-        APY         = powl(ARU_x, ARU_y) - 1.L;
-        APY_boost   = powl(ideal_vp            / boost_integral, ARU_y) - 1.L;
-        APY_boost_2 = powl(xcp_profit_real_adj / boost_integral, ARU_y) - 1.L;
         if (i % 1024 == 0 && log) {
             money xcp_profit_real = state.xcp / initial_state.xcp;
             printf("t=%lu %.1Lf%%\ttrades: 0\tAMM: %.5Lf\tTarget: %.5Lf\tVol: %.4Lf\tPR:%.2Lf\txCP-growth: {%.10Lf}\tAPY:%.1Lf%%\ttw_apr:0.0%%\tfee:%.3Lf%% .\n",
@@ -429,7 +421,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     extdata->APY = APY;
     extdata->volume = volume;
     extdata->APY_boost = APY_boost;
-    extdata->APY_boost_2 = APY_boost_2;
     extdata->APR_geo_mean = 0;
 
     if (log) {
@@ -552,7 +543,6 @@ void SimulationTask::work() {
     simdata.result = extdata;
     printf("Liquidity density vs that of xyz=k: %Lf\n", extdata.liq_density);
     printf("APY-boost: %Lf%%\n", extdata.APY_boost * 100.L);
-    printf("APY-boost-2: %Lf%%\n", extdata.APY_boost_2 * 100.L);
     printf("APR-geo-mean: %Lf%%\n", extdata.APR_geo_mean * 100.L);
     printf("APY: %Lf%%\n", extdata.APY * 100.L);
     auto end = get_thread_time();
@@ -567,7 +557,6 @@ void SimulationTask::fini() {
     dst["imbalance"]          = simdata.result.imbalance;
     dst["volume"]             = simdata.result.volume;
     dst["APY_boost"]          = simdata.result.APY_boost;
-    dst["APY_boost_2"]        = simdata.result.APY_boost_2;
     dst["APR_geo_mean"]       = simdata.result.APR_geo_mean;
     dst["imbalance_integral"] = simdata.result.imbalance_integral;
 }
