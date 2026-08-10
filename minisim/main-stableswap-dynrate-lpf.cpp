@@ -282,7 +282,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     money APY = 0.0;
     money APY_boost = 0.0;
     money APY_boost_2 = 0.0;
-    money APR_geo_mean = 0.0;
 
     FILE *out_file = nullptr;
     if (log) {
@@ -444,7 +443,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     extdata->volume = volume;
     extdata->APY_boost = APY_boost;
     extdata->APY_boost_2 = APY_boost_2;
-    extdata->APR_geo_mean = APR_geo_mean;
+    extdata->APR_geo_mean = 0;
 
     if (log) {
         fprintf(out_file, "]");
