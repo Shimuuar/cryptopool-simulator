@@ -327,12 +327,13 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                 FullAMMState state_trade = FullAMMState(state, trade_fee, curve);
                 xcp_profit += (state_trade.xcp - state.xcp) / initial_state.xcp;
                 // Update trade volumes
-                total_vol += trade.amountFor(a) * oracle.price[a];
+                const money trade_dx = trade.amountFor(a);
                 const money trade_dy = trade.amountFor(b);
                 const money p_before = state.price;
                 const money p_after  = state_trade.price;
-                volume += trade_dy
-                        / (state_trade.amm.xs[b] + state_trade.amm.xs[a] / p_after);
+                total_vol += trade_dx * oracle.price[a];
+                volume    += trade_dy
+                           / (state_trade.amm.xs[b] + state_trade.amm.xs[a] / p_after);
                 const money _slippage = (trade_dy * (p_before + p_after))
                                       / (2.L * (mabs(p_before - p_after)) * state_trade.amm.xs[b]);
                 // Slippage
