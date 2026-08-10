@@ -102,15 +102,16 @@ struct Trader {
 
     money step_for_price_2(const AMMState& state, money p_min, money p_max, money vol, money ext_vol);
 
-    void update_xcp_2(const FullAMMState& oldstate, FullAMMState& state, bool only_real=false) {
-        money old_xcp_profit_real = xcp_profit_real;
-        xcp_profit_real = xcp_profit_real * state.xcp / oldstate.xcp;
+    void update_xcp_2(const FullAMMState& initial_state, const FullAMMState& oldstate, FullAMMState& state, bool only_real=false) {
+        xcp_profit_real *= state.xcp / oldstate.xcp;
         if (not only_real) {
-            xcp_profit += xcp_profit_real - old_xcp_profit_real;
+            xcp_profit += (state.xcp - oldstate.xcp) / initial_state.xcp;
         }
     }
 
-    void tweak_price_2(const FullAMMState& oldstate, FullAMMState& state, u64 t, money spot_prev,
+    void tweak_price_2(const FullAMMState& initial_state,
+                       const FullAMMState& oldstate,
+                       FullAMMState& state, u64 t, money spot_prev,
                        PriceOracle::State &oracle);
 
     void simulate(simulation_data *simdata, extra_data *extdata);
@@ -282,6 +283,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     FullAMMState state;
     state.amm = state0;
     state.compute(curve);
+    FullAMMState initial_state = state;
     money last_prices = curve.price_2(state.amm);
     money imbalance_integral = 0;
     money APY = 0.0;
@@ -313,7 +315,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         auto apply_tweak_trade = [&](const FullAMMState& oldst, FullAMMState& st) {
             money ps_before = st.amm.price[1];
             money cur_get_p = curve.p_2(st.amm);
-            tweak_price_2(oldst, st, d.t, last_prices, oracle);
+            tweak_price_2(initial_state, oldst, st, d.t, last_prices, oracle);
             last_prices = cur_get_p * ps_before;
             last_time_tweak_price = d.t;
         };
@@ -350,7 +352,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                 // Apply fee and make trade
                 trade_fee   = trade.applyFee(compute_fee(state_price.amm, trade));
                 state_trade = state_price.applyTrade(trade_fee, curve);
-                update_xcp_2(state, state_trade);
+                update_xcp_2(initial_state, state, state_trade);
                 //
                 total_vol += trade.amountFor(a) * oracle.price[a];
                 const money trade_dy = trade.amountFor(b);
@@ -457,7 +459,11 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     }
 }
 
-void Trader::tweak_price_2(const FullAMMState& oldstate, FullAMMState& state, u64 t, money spot_prev,
+void Trader::tweak_price_2(const FullAMMState& initial_state,
+                           const FullAMMState& oldstate,
+                           FullAMMState& state,
+                           u64 t,
+                           money spot_prev,
                            PriceOracle::State &oracle
     )
 {
@@ -502,7 +508,7 @@ void Trader::tweak_price_2(const FullAMMState& oldstate, FullAMMState& state, u6
     auto old_profit = xcp_profit_real;
     state.compute(curve);
 
-    update_xcp_2(oldstate, state, true);
+    update_xcp_2(initial_state, oldstate, state, true);
 
     if (xcp_profit_real <= xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction)) {
         //  If real profit is less than equilibrium - revert params back
