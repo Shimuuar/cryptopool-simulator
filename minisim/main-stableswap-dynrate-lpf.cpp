@@ -84,7 +84,6 @@ struct Trader {
         else
             this->lp_profit_fraction = 0.5L;
 
-        this->boost_integral = 1.L;
         log = jconf["log"];
         this->dx = D * 1e-8L;
         this->xcp_profit = 1.L;
@@ -109,7 +108,6 @@ struct Trader {
     int log;
     const money ext_fee;
     const money gas_fee;
-    money boost_integral;
     money lp_profit_fraction;
     bool not_adjusted;
     const Curve curve;
@@ -270,6 +268,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     money APY = 0.0;
     money APY_boost = 0.0;
     money APY_boost_2 = 0.0;
+    money boost_integral = 1.0;
 
     FILE *out_file = nullptr;
     if (log) {
@@ -363,7 +362,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             state.amm.xs[0] = state.amm.xs[0] * _boost;
             state.amm.xs[1] = state.amm.xs[1] * _boost;
             state.compute(curve);
-            this->boost_integral *= _boost;
+            boost_integral *= _boost;
         }
 
         // only tweak_price every N seconds or on trade
@@ -387,8 +386,8 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         long double ARU_x = ideal_vp;
         long double ARU_y = (86400.L * 365.L / (d.t - start_t + 1.L));
         APY         = powl(ARU_x, ARU_y) - 1.L;
-        APY_boost   = powl(ideal_vp            / this->boost_integral, ARU_y) - 1.L;
-        APY_boost_2 = powl(xcp_profit_real_adj / this->boost_integral, ARU_y) - 1.L;
+        APY_boost   = powl(ideal_vp            / boost_integral, ARU_y) - 1.L;
+        APY_boost_2 = powl(xcp_profit_real_adj / boost_integral, ARU_y) - 1.L;
         if (i % 1024 == 0 && log) {
             money xcp_profit_real = state.xcp / initial_state.xcp;
             printf("t=%lu %.1Lf%%\ttrades: 0\tAMM: %.5Lf\tTarget: %.5Lf\tVol: %.4Lf\tPR:%.2Lf\txCP-growth: {%.10Lf}\tAPY:%.1Lf%%\ttw_apr:0.0%%\tfee:%.3Lf%% .\n",
