@@ -144,7 +144,7 @@ money Trader::step_for_price_2(const AMMState& state0, money p_min, money p_max,
         // sell -> x: second, y: first
 
         x = x0[_from] + _dx;
-        y = curve.y_2(state, x, _from, _to);
+        y = curve.computeY(state, x, _from, _to);
 
         state.xs[_from] = x;
         state.xs[_to] = y;
@@ -199,7 +199,7 @@ money Trader::step_for_price_2(const AMMState& state0, money p_min, money p_max,
             _dx = _dx_prev + step;
 
             x = x0[_from] + _dx;
-            y = curve.y_2(state, x, _from, _to);
+            y = curve.computeY(state, x, _from, _to);
 
             state.xs[_from] = x;
             state.xs[_to] = y;
@@ -289,7 +289,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
 
         auto apply_tweak_trade = [&](const FullAMMState& oldst, FullAMMState& st) {
             money ps_before = st.amm.price[1];
-            money cur_get_p = curve.p_2(st.amm);
+            money cur_get_p = curve.computeP(st.amm);
             tweak_price_2(initial_state, oldst, st, d.t, last_prices, oracle);
             last_prices = cur_get_p * ps_before;
             last_time_tweak_price = d.t;

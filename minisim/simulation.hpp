@@ -129,16 +129,18 @@ public:
     Curve(money _A, money _gamma):
         A(_A), gamma(_gamma)
     {}
-
-    money y_2(const AMMState& st, money x, int i, int j) const;
-    money p_2(const AMMState& st) const;
+    // Compute value of x[j] for giben x[i].
+    money computeY(const AMMState& st, money x, int i, int j) const;
+    // Compute relative price for given AMM state
+    money computeP(const AMMState& st) const;
+    // 
     money price_2(const AMMState& st) const {
-        return p_2(st) * st.price.p[1];
+        return computeP(st) * st.price.p[1];
     }
 
-    money get_xcp_2(const AMMState& st) const;
+    money computeXcp(const AMMState& st) const;
 private:
-    money D_2(const AMMState& st) const;
+    money computeD(const AMMState& st) const;
 public:
     money A;
     money gamma;

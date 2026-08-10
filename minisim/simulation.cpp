@@ -101,30 +101,30 @@ static money solve_D(money A, money gamma, const TokensXP &x) {
 
 
 
-money Curve::D_2(const AMMState& st) const {
+money Curve::computeD(const AMMState& st) const {
     TokensXP xp(st);
     auto ret = solve_D(A, gamma, xp);
     return ret;
 }
 
-money Curve::y_2(const AMMState& st, money x, int i, int j) const {
+money Curve::computeY(const AMMState& st, money x, int i, int j) const {
     TokensXP xp(st);
     xp[i] = x * st.price[i];
-    auto yp = solve_x(A, gamma, xp, this->D_2(st), j);
+    auto yp = solve_x(A, gamma, xp, computeD(st), j);
     auto ret = yp / st.price[j];
     return ret;
 }
 
-money Curve::p_2(const AMMState& st) const {
+money Curve::computeP(const AMMState& st) const {
     TokensXP xp(st);
-    auto p = get_p_2(xp, this->D_2(st), this->A, this->gamma);
+    auto p = get_p_2(xp, computeD(st), this->A, this->gamma);
     return p;
 }
 
-money Curve::get_xcp_2(const AMMState& st) const {
+money Curve::computeXcp(const AMMState& st) const {
     // First calculate the ideal balance
     //  Then calculate, what the constant-product would be
-    auto D = D_2(st);
+    auto D = computeD(st);
     money X[2];
     for (size_t i = 0; i < 2; i++) {
         X[i] = D  / (2 * st.price[i]);
@@ -142,7 +142,7 @@ AMMState::AMMState(const AMMState& old,
 }
 
 void FullAMMState::compute(const Curve& curve) {
-    xcp   = curve.get_xcp_2(amm);
+    xcp   = curve.computeXcp(amm);
     price = curve.price_2(amm);
 }
 
@@ -175,10 +175,10 @@ Trade::Trade(Trade::Dir      trade,
     i_sell = isell;
     if( trade == Trade::BUY ) {
         buy  = amount;
-        sell = amm.xs[i_sell] - curve.y_2(amm, amm.xs[i_buy] + buy, i_buy, i_sell);
+        sell = amm.xs[i_sell] - curve.computeY(amm, amm.xs[i_buy] + buy, i_buy, i_sell);
     } else {
         sell = -amount;
-        buy  = amm.xs[i_buy] - curve.y_2(amm, amm.xs[i_sell] + sell, i_sell, i_buy);
+        buy  = amm.xs[i_buy] - curve.computeY(amm, amm.xs[i_sell] + sell, i_sell, i_buy);
     }
 }
 
