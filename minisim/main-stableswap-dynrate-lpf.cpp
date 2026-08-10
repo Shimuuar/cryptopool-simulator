@@ -379,7 +379,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             imbalance_integral += (1.L - bal_mul) * last_time;  // last_time is dt here
         }
 
-        money ideal_vp = xcp_profit * lp_profit_fraction + (1.L - lp_profit_fraction);
+        money ideal_vp = 1 + (xcp_profit - 1) * lp_profit_fraction;
         xcp_profit_real_adj *= (ideal_vp / xcp_profit_real_prev);
         xcp_profit_real_prev = ideal_vp;
 
