@@ -78,6 +78,9 @@ struct AMMState {
 struct FullAMMState {
     // Create uninitialized AMM
     FullAMMState() = default;
+    // Create AMM from state
+    FullAMMState(const AMMState& state,
+                 const Curve&    curve);
     // Create AMM from old state and trade
     FullAMMState(const FullAMMState& state,
                  const Trade&        trade,
@@ -90,29 +93,6 @@ struct FullAMMState {
     // Update cached values in place
     void compute(const Curve& curve);
 };
-
-
-// Definition of curve
-class Curve {
-public:
-    Curve(money _A, money _gamma):
-        A(_A), gamma(_gamma)
-    {}
-
-    money y_2(const AMMState& st, money x, int i, int j) const;
-    money p_2(const AMMState& st) const;
-    money price_2(const AMMState& st) const {
-        return p_2(st) * st.price.p[1];
-    }
-
-    money get_xcp_2(const AMMState& st) const;
-private:
-    money D_2(const AMMState& st) const;
-public:
-    money A;
-    money gamma;
-};
-
 
 // Single trade peformed by pool.
 struct Trade {
@@ -140,6 +120,35 @@ struct Trade {
     int   i_buy;  // Index of bought token
     int   i_sell; // Index of sold token
 };
+
+
+
+// ----------------------------------------------------------------
+// -- Pluggable API
+// ----------------------------------------------------------------
+
+// Definition of AMM curve
+class Curve {
+public:
+    Curve(money _A, money _gamma):
+        A(_A), gamma(_gamma)
+    {}
+
+    money y_2(const AMMState& st, money x, int i, int j) const;
+    money p_2(const AMMState& st) const;
+    money price_2(const AMMState& st) const {
+        return p_2(st) * st.price.p[1];
+    }
+
+    money get_xcp_2(const AMMState& st) const;
+private:
+    money D_2(const AMMState& st) const;
+public:
+    money A;
+    money gamma;
+};
+
+
 
 
 

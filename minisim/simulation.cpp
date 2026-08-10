@@ -137,6 +137,13 @@ void FullAMMState::compute(const Curve& curve) {
     price = curve.price_2(amm);
 }
 
+FullAMMState::FullAMMState(const AMMState &state,
+                           const Curve    &curve) :
+    amm(state)
+{
+    compute(curve);
+}
+
 FullAMMState::FullAMMState(const FullAMMState &state,
                            const Trade        &trade,
                            const Curve        &curve) :

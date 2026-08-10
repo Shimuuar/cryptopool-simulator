@@ -275,10 +275,8 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     money slippage_count = 0;
     money volume = 0;
     money total_vol = 0;
-    FullAMMState state;
-    state.amm = state0;
-    state.compute(curve);
-    FullAMMState initial_state = state;
+    FullAMMState state(state0, curve);
+    const FullAMMState initial_state = state;
     money last_prices = curve.price_2(state.amm);
     money imbalance_integral = 0;
     money APY = 0.0;
