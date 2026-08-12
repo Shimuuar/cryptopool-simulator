@@ -24,3 +24,6 @@ main: ${OBJ}
 
 %.cpp.o: %.cpp $(HEADERS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+foo: sim-json.cpp.o foo.cpp.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $+ -o $@
