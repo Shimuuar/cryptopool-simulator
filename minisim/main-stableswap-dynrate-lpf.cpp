@@ -253,7 +253,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     money total_vol = 0;
     FullAMMState state(state0, curve);
     const FullAMMState initial_state = state;
-    money last_prices = curve.price_2(state.amm);
+    money last_prices = curve.computePrice(state.amm);
     money imbalance_integral = 0;
     money APY = 0.0;
     money APY_boost = 0.0;

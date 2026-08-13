@@ -132,23 +132,22 @@ public:
     Curve(const JSON& json);
     // Compute value of x[j] for giben x[i].
     money computeY(const AMMState& st, money x, int i, int j) const;
-    // Compute relative price for given AMM state
+    // Compute relative price for given AMM state. It uses token
+    // reduced by price scale.
     money computeP(const AMMState& st) const;
-    // 
-    money price_2(const AMMState& st) const {
+    // Compute relative price for given AMM state. It uses real token
+    // prices
+    money computePrice(const AMMState& st) const {
         return computeP(st) * st.price.p[1];
     }
-
+    // Compute value of X[cp]
     money computeXcp(const AMMState& st) const;
-private:
+    // Compute value of invariant D
     money computeD(const AMMState& st) const;
 public:
     money A;
     money gamma;
 };
-
-
-
 
 
 // Interface for computing fee _and_ boost rate. They seems to be

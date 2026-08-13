@@ -156,7 +156,7 @@ AMMState::AMMState(const AMMState& old,
 
 void FullAMMState::compute(const Curve& curve) {
     xcp   = curve.computeXcp(amm);
-    price = curve.price_2(amm);
+    price = curve.computePrice(amm);
 }
 
 FullAMMState::FullAMMState(const AMMState &state,
