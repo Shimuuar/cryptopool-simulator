@@ -153,7 +153,18 @@ public:
 // Interface for computing fee _and_ boost rate. They seems to be
 // rather interwined
 struct Fee {
-    // FIXME: Make fee an interface
+    Fee(money _mid_fee,
+        money _out_fee,
+        money _fee_gamma,
+        money _boost_rate,
+        money _boost_mul
+        ):
+        mid_fee(_mid_fee),
+        out_fee(_out_fee),
+        fee_gamma(_fee_gamma),
+        boost_rate(_boost_rate / (86400L * 365L)),
+        boost_mul(_boost_mul)
+    {}
 
     // Compute fee for a given state of AMM
     money computeFee(const AMMState& state) const;
