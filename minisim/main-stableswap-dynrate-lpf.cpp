@@ -1,6 +1,7 @@
 #include "simulation.hpp"
 #include "sim-threading.hpp"
 #include "sim-data.hpp"
+#include "sim-json.hpp"
 
 #include <iostream>
 #include <cassert>
@@ -15,9 +16,7 @@
 #include <cmath>
 #include <fstream>
 #include <iomanip>
-#include "json.hpp"
 
-using nlohmann::json;
 using std::vector, std::string, std::pair, std::sort, std::map, std::min, std::max;
 
 
@@ -25,7 +24,7 @@ static inline money mabs(money val) noexcept {
     return val >= 0 ? val : -val;
 }
 
-TradeDataArray* get_all(json const &jin, int last_elems) {
+TradeDataArray* get_all(const JSON &jin, int last_elems) {
     if( jin["datafile"].size() != 1 ) {
         std::cerr << "Minisim: only 2-coin pools are supported\n";
         exit(1);
@@ -52,14 +51,14 @@ struct extra_data {
 
 struct simulation_data {
     int num = 0;
-    json const *jconf = nullptr;
+    JSON jconf;
     const TradeDataArray *test_data = nullptr;
     extra_data result;
 };
 
 
 struct Trader {
-    Trader(json const &jconf, const Prices &p0) :
+    Trader(const JSON &jconf, const Prices &p0) :
         fee_model(jconf["mid_fee"],
                   jconf["out_fee"],
                   jconf["fee_gamma"],
@@ -489,39 +488,14 @@ void Trader::tweak_price_2(const FullAMMState& initial_state,
 }
 
 
-static bool json_load(string const &name, json &j) {
-    try {
-        std::ifstream ifl(name);
-        if (!ifl) throw std::logic_error("can't open file " + name);
-        ifl >> j;
-    } catch (std::exception const &ex) {
-        printf("json_load: %s\n", ex.what());
-        return false;
-    }
-    return true;
-}
-
-static bool json_save(string const &name, json const &j) {
-    try {
-        std::ofstream ofl(name);
-        if (!ofl) throw std::logic_error("can't create file " + name);
-        ofl << std::setw(4) << j << "\n";
-    } catch (std::exception const &ex) {
-        printf("json_load: %s\n", ex.what());
-        return false;
-    }
-    return true;
-}
-
-
 class SimulationTask : public Workload {
 public:
-    SimulationTask(simulation_data _simdata, json *_result) :
+    SimulationTask(simulation_data _simdata, JSON *_result) :
         simdata(_simdata),
         result(_result)
     {}
     simulation_data simdata;
-    json *result;
+    JSON *result;
 
     virtual void work();
     virtual void fini();
@@ -533,7 +507,7 @@ private:
 void SimulationTask::work() {
     int tid = 0;
     printf("[%d]: pick up configuration %d\n", tid, simdata.num);
-    Trader trader(*(simdata.jconf), simdata.test_data->initialPriceScale());
+    Trader trader(simdata.jconf, simdata.test_data->initialPriceScale());
     auto start_simulation = get_thread_time();
     printf("Configuration %d: begin simulation\n", simdata.num);
     extra_data extdata;
@@ -548,7 +522,7 @@ void SimulationTask::work() {
 }
 
 void SimulationTask::fini() {
-    json& dst = (*result)["configuration"][simdata.num]["Result"];
+    JSON::ref dst = (*result)["configuration"][simdata.num]["Result"];
     dst["APY"]                = simdata.result.APY;
     dst["liq_density"]        = simdata.result.liq_density;
     dst["slippage"]           = simdata.result.slippage;
@@ -578,10 +552,8 @@ int main(int argc, char **argv) {
     string in_json_name = argc > 1 ? argv[1] : "sample_in.json";
     string out_json_name = argc > 2 ? argv[2] : "sample_out.json";
     double real_time_start = get_total_time();
-    json jin;
-    if (!json_load(in_json_name, jin)) {
-        return 0;
-    }
+    JSON jin;
+    jin.load_file(in_json_name);
     int configurations = jin["configuration"].size();
     if (configurations <= 0) {
         printf("No configurations found\n");
@@ -596,18 +568,18 @@ int main(int argc, char **argv) {
     double wall_time_start = get_wall_time();
 
     WorkQueue work_queue(THREADS);
-    json result = jin;
+    JSON result = jin;
     for (int i = 0; i < configurations; i++) {
         simulation_data cd;
         cd.num = i;
         cd.test_data = &*test_data;
-        cd.jconf = &jin["configuration"][i];
+        cd.jconf = jin["configuration"][i];
         work_queue.enqueue(new SimulationTask(cd, &result));
     }
     work_queue.start();
     work_queue.join();
 
-    json_save(out_json_name, result);
+    result.save_file(out_json_name);
     double time_end = get_total_time();
     double wall_time_end = get_wall_time();
     print_clock("Data reading and preprocessing time", real_time_start, time_start);

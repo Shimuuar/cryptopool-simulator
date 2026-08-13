@@ -9,7 +9,8 @@ OBJ      = \
 	main-stableswap-dynrate-lpf.cpp.o	\
 	simulation.cpp.o			\
 	sim-threading.cpp.o			\
-	sim-data.cpp.o
+	sim-data.cpp.o				\
+	sim-json.cpp.o
 
 
 all: main
