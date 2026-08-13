@@ -1,19 +1,12 @@
 #include "sim-json.hpp"
 #include "json.hpp"
 
-#include <variant>
-#include <functional>
 #include <fstream>
 #include <iomanip>
 
 using nlohmann::json;
 
 struct JSON::Impl {
-    // std::variant<
-    //   std::reference_wrapper<json>,
-    //   std::unique_ptr<json>
-    //   > payload;
-
     Impl() :
         m_payload()
     {}
@@ -61,10 +54,12 @@ const JSON::ref JSON::as_ref() const {
 }
 
 
-JSON::ref       JSON::operator[](const char* k)       { return as_ref()[k]; }
-const JSON::ref JSON::operator[](const char* k) const { return as_ref()[k]; }
-JSON::ref       JSON::operator[](int k)               { return as_ref()[k]; }
-const JSON::ref JSON::operator[](int k)         const { return as_ref()[k]; }
+JSON::ref       JSON::operator[](const char* k)              { return as_ref()[k]; }
+const JSON::ref JSON::operator[](const char* k)        const { return as_ref()[k]; }
+JSON::ref       JSON::operator[](const std::string& k)       { return as_ref()[k]; }
+const JSON::ref JSON::operator[](const std::string& k) const { return as_ref()[k]; }
+JSON::ref       JSON::operator[](int k)                      { return as_ref()[k]; }
+const JSON::ref JSON::operator[](int k)                const { return as_ref()[k]; }
 
 JSON::operator int()         const { return as_ref(); }
 JSON::operator double()      const { return as_ref(); }
@@ -89,6 +84,18 @@ JSON::ref JSON::ref::operator[](const char* key) {
 }
 
 const JSON::ref JSON::ref::operator[](const char* key) const {
+    const json *js    = static_cast<const json*>(m_ptr);
+    const json &child = (*js)[key];
+    return JSON::ref((void*)(&child));
+}
+
+JSON::ref JSON::ref::operator[](const std::string& key) {
+    json *js    = static_cast<json*>(m_ptr);
+    json &child = (*js)[key];
+    return JSON::ref(static_cast<void*>(&child));
+}
+
+const JSON::ref JSON::ref::operator[](const std::string& key) const {
     const json *js    = static_cast<const json*>(m_ptr);
     const json &child = (*js)[key];
     return JSON::ref((void*)(&child));

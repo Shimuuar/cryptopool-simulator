@@ -25,6 +25,8 @@ public:
 
         ref       operator[](const char*);
         const ref operator[](const char*) const;
+        ref       operator[](const std::string&);
+        const ref operator[](const std::string&) const;
         ref       operator[](int);
         const ref operator[](int) const;
 
@@ -41,13 +43,16 @@ public:
     void load_file(const std::string& path);
     void save_file(const std::string& path);
 
-    //
+    // Default, same as nlohmann::json()
     JSON();
+    // Move data from other
     JSON(JSON&& other);
     ~JSON();
 
     ref       operator[](const char*);
     const ref operator[](const char*) const;
+    ref       operator[](const std::string&);
+    const ref operator[](const std::string&) const;
     ref       operator[](int);
     const ref operator[](int) const;
 
