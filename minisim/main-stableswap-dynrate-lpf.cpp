@@ -337,7 +337,8 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                     slippage_count += last_time;
                     antislippage   += last_time * _slippage;
                     slippage       += last_time / _slippage;
-                    imbalance      += mabs(logl(last / state_trade.amm.price[1])) * curve->A * last_time;
+                    // FIXME: cannot compute imbalance
+                    // imbalance      += mabs(logl(last / state_trade.amm.price[1])) * curve->A * last_time;
                 }
                 // Apply correction to a price scale
                 FullAMMState state_price = state_trade;

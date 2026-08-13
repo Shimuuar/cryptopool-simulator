@@ -104,23 +104,23 @@ static money solve_D(money A, money gamma, const TokensXP &x) {
 }
 
 
-Curve::Curve(money _A, money _gamma) :
+Stableswap::Stableswap(money _A, money _gamma) :
     A(_A),
     gamma(_gamma)
 {}
-Curve::Curve(const JSON& json) :
+Stableswap::Stableswap(const JSON& json) :
     A(json["A"]),
     gamma(json["gamma"])
 {}
     
 
-money Curve::computeD(const AMMState& st) const {
+money Stableswap::computeD(const AMMState& st) const {
     TokensXP xp(st);
     auto ret = solve_D(A, gamma, xp);
     return ret;
 }
 
-money Curve::computeY(const AMMState& st, money x, int i, int j) const {
+money Stableswap::computeY(const AMMState& st, money x, int i, int j) const {
     TokensXP xp(st);
     xp[i] = x * st.price[i];
     auto yp = solve_x(A, gamma, xp, computeD(st), j);
@@ -128,13 +128,13 @@ money Curve::computeY(const AMMState& st, money x, int i, int j) const {
     return ret;
 }
 
-money Curve::computeP(const AMMState& st) const {
+money Stableswap::computeP(const AMMState& st) const {
     TokensXP xp(st);
     auto p = get_p_2(xp, computeD(st), this->A, this->gamma);
     return p;
 }
 
-money Curve::computeXcp(const AMMState& st) const {
+money Stableswap::computeXcp(const AMMState& st) const {
     // First calculate the ideal balance
     //  Then calculate, what the constant-product would be
     auto D = computeD(st);
@@ -306,7 +306,7 @@ void register_curve_factory(Curve* (*fun)(const JSON::ref&)) {
 
 
 static Curve* make_stableswap(const JSON::ref& json) {
-    return new Curve(json);
+    return new Stableswap(json);
 }
 
 namespace {

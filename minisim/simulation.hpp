@@ -133,27 +133,38 @@ void register_curve_factory(Curve* (*)(const JSON::ref&));
 // Definition of AMM curve
 class Curve {
 public:
-    Curve(money _A, money _gamma);
-    Curve(const JSON& json);
+    virtual ~Curve() = default;
     // Compute value of x[j] for giben x[i].
-    money computeY(const AMMState& st, money x, int i, int j) const;
+    virtual money computeY(const AMMState& st, money x, int i, int j) const = 0;
     // Compute relative price for given AMM state. It uses token
     // reduced by price scale.
-    money computeP(const AMMState& st) const;
+    virtual money computeP(const AMMState& st) const = 0;
     // Compute relative price for given AMM state. It uses real token
     // prices
     money computePrice(const AMMState& st) const {
         return computeP(st) * st.price.p[1];
     }
     // Compute value of X[cp]
-    money computeXcp(const AMMState& st) const;
+    virtual money computeXcp(const AMMState& st) const = 0;
     // Compute value of invariant D
-    money computeD(const AMMState& st) const;
+    virtual money computeD(const AMMState& st) const = 0;
+};
+
+class Stableswap : public Curve{
+public:
+    Stableswap(money _A, money _gamma);
+    Stableswap(const JSON& json);
+    ~Stableswap() = default;
+
+    virtual money computeY(const AMMState& st, money x, int i, int j) const;
+    virtual money computeP(const AMMState& st) const;
+    virtual money computeXcp(const AMMState& st) const;
+    virtual money computeD(const AMMState& st) const;
+
 public:
     money A;
     money gamma;
 };
-
 
 // Interface for computing fee _and_ boost rate. They seems to be
 // rather interwined
