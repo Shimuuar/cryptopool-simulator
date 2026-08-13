@@ -2,6 +2,8 @@
 // General API for writing arbitrage-based simulators for AMM. This
 // header contain data structures and primitives for writing
 // simulators but no simulator itself.
+#include "sim-json.hpp"
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <cassert>
@@ -126,9 +128,8 @@ struct Trade {
 // Definition of AMM curve
 class Curve {
 public:
-    Curve(money _A, money _gamma):
-        A(_A), gamma(_gamma)
-    {}
+    Curve(money _A, money _gamma);
+    Curve(const JSON& json);
     // Compute value of x[j] for giben x[i].
     money computeY(const AMMState& st, money x, int i, int j) const;
     // Compute relative price for given AMM state
@@ -158,13 +159,8 @@ struct Fee {
         money _fee_gamma,
         money _boost_rate,
         money _boost_mul
-        ):
-        mid_fee(_mid_fee),
-        out_fee(_out_fee),
-        fee_gamma(_fee_gamma),
-        boost_rate(_boost_rate / (86400L * 365L)),
-        boost_mul(_boost_mul)
-    {}
+        );
+    Fee(const JSON& json);
 
     // Compute fee for a given state of AMM
     money computeFee(const AMMState& state) const;

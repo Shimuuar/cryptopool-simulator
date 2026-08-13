@@ -59,14 +59,10 @@ struct simulation_data {
 
 struct Trader {
     Trader(const JSON &jconf, const Prices &p0) :
-        fee_model(jconf["mid_fee"],
-                  jconf["out_fee"],
-                  jconf["fee_gamma"],
-                  jconf["boost_rate"],
-                  jconf["boost_mul"]),
+        fee_model(jconf),
         ext_fee(jconf["ext_fee"]),
         gas_fee(jconf["gas_fee"]),
-        curve(jconf["A"], jconf["gamma"]),
+        curve(jconf),
         state0(jconf["D"], p0)
     {
         price_oracle.ma_half_time = jconf["ma_half_time"];

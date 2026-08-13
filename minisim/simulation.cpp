@@ -20,6 +20,10 @@ static inline money mabs(money val) noexcept {
     return val >= 0 ? val : -val;
 }
 
+// ----------------------------------------------------------------
+// -- Curve
+// ----------------------------------------------------------------
+
 static money geometric_mean_2(money const *x) {
     return sqrtl(x[0] * x[1]);
 }
@@ -100,6 +104,15 @@ static money solve_D(money A, money gamma, const TokensXP &x) {
 }
 
 
+Curve::Curve(money _A, money _gamma) :
+    A(_A),
+    gamma(_gamma)
+{}
+Curve::Curve(const JSON& json) :
+    A(json["A"]),
+    gamma(json["gamma"])
+{}
+    
 
 money Curve::computeD(const AMMState& st) const {
     TokensXP xp(st);
@@ -197,6 +210,25 @@ money Trade::amountFor(int i) const {
 }
 
 
+Fee::Fee(money _mid_fee,
+         money _out_fee,
+         money _fee_gamma,
+         money _boost_rate,
+         money _boost_mul
+    ) :
+    mid_fee(_mid_fee),
+    out_fee(_out_fee),
+    fee_gamma(_fee_gamma),
+    boost_rate(_boost_rate / (86400L * 365L)),
+    boost_mul(_boost_mul)
+{}
+Fee::Fee(const JSON& json) :
+    mid_fee(json["mid_fee"]),
+    out_fee(json["out_fee"]),
+    fee_gamma(json["fee_gamma"]),
+    boost_rate((double)json["boost_rate"] / (86400L * 365L)),
+    boost_mul(json["boost_mul"])
+{}
 
 static money reduction_coefficient_2(const TokensXP &x, money gamma) {
     money K = 1.L;
