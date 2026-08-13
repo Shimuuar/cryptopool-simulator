@@ -125,6 +125,11 @@ struct Trade {
 // -- Pluggable API
 // ----------------------------------------------------------------
 
+
+Curve* makeCurve(const JSON&);
+Curve* makeCurve(const JSON::ref&);
+void register_curve_factory(Curve* (*)(const JSON::ref&));
+
 // Definition of AMM curve
 class Curve {
 public:

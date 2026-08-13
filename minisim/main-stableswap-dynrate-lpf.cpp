@@ -62,9 +62,12 @@ struct Trader {
         fee_model(jconf),
         ext_fee(jconf["ext_fee"]),
         gas_fee(jconf["gas_fee"]),
-        curve(jconf),
+        curve(makeCurve(jconf)),
         state0(jconf["D"], p0)
     {
+        if( !curve ) {
+            throw std::runtime_error("Failed to initialize curve");
+        }
         price_oracle.ma_half_time = jconf["ma_half_time"];
         //--
         money D = jconf["D"];
@@ -102,7 +105,7 @@ struct Trader {
     const money gas_fee;
     money lp_profit_fraction;
     bool not_adjusted;
-    const Curve curve;
+    std::unique_ptr<Curve> curve;
     AMMState state0;
 };
 
@@ -137,7 +140,7 @@ money Trader::step_for_price_2(const AMMState& state0, money p_min, money p_max,
         // sell -> x: second, y: first
 
         x = x0[_from] + _dx;
-        y = curve.computeY(state, x, _from, _to);
+        y = curve->computeY(state, x, _from, _to);
 
         state.xs[_from] = x;
         state.xs[_to] = y;
@@ -192,7 +195,7 @@ money Trader::step_for_price_2(const AMMState& state0, money p_min, money p_max,
             _dx = _dx_prev + step;
 
             x = x0[_from] + _dx;
-            y = curve.computeY(state, x, _from, _to);
+            y = curve->computeY(state, x, _from, _to);
 
             state.xs[_from] = x;
             state.xs[_to] = y;
@@ -251,7 +254,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     money slippage_count = 0;
     money volume = 0;
     money total_vol = 0;
-    FullAMMState state(state0, curve);
+    FullAMMState state(state0, *curve);
     const FullAMMState initial_state = state;
     money last_prices = state.price;
     money imbalance_integral = 0;
@@ -282,7 +285,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
 
         auto apply_tweak_trade = [&](const FullAMMState& oldst, FullAMMState& st) {
             money ps_before = st.amm.price[1];
-            money cur_get_p = curve.computeP(st.amm);
+            money cur_get_p = curve->computeP(st.amm);
             tweak_price_2(initial_state, oldst, st, d.t, last_prices, oracle);
             last_prices = cur_get_p * ps_before;
             last_time_tweak_price = d.t;
@@ -303,7 +306,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                 auto step = step_for_price_2(state.amm, 0, max_price, 0, ext_vol);
                 if (step > 0) {
                     trade_happened = true;
-                    trade = Trade(Trade::BUY, step, a, b, state.amm, curve);
+                    trade = Trade(Trade::BUY, step, a, b, state.amm, *curve);
                 }
             } else if((min_price != 0) && (min_price < state.price)) {
                 // External Y price is lower. AMM will buy Y from and
@@ -311,13 +314,13 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                 auto step = step_for_price_2(state.amm, min_price, 0, 0, ext_vol);
                 if (step > 0) {
                     trade_happened = true;
-                    trade = Trade(Trade::BUY, step, b, a, state.amm, curve);
+                    trade = Trade(Trade::BUY, step, b, a, state.amm, *curve);
                 }
             }
             if( trade_happened ) {
                 // Apply fee and make trade
                 Trade        trade_fee   = trade.applyFee(fee_model.computeFee(state.amm, trade));
-                FullAMMState state_trade = FullAMMState(state, trade_fee, curve);
+                FullAMMState state_trade = FullAMMState(state, trade_fee, *curve);
                 xcp_profit += (state_trade.xcp - state.xcp) / initial_state.xcp;
                 // Update trade volumes
                 const money trade_dx = trade.amountFor(a);
@@ -334,7 +337,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                     slippage_count += last_time;
                     antislippage   += last_time * _slippage;
                     slippage       += last_time / _slippage;
-                    imbalance      += mabs(logl(last / state_trade.amm.price[1])) * curve.A * last_time;
+                    imbalance      += mabs(logl(last / state_trade.amm.price[1])) * curve->A * last_time;
                 }
                 // Apply correction to a price scale
                 FullAMMState state_price = state_trade;
@@ -351,7 +354,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             money _boost = (1.L + last_time * local_boost_rate);
             state.amm.xs[0] = state.amm.xs[0] * _boost;
             state.amm.xs[1] = state.amm.xs[1] * _boost;
-            state.compute(curve);
+            state.compute(*curve);
             boost_integral *= _boost;
         }
 
@@ -471,7 +474,7 @@ void Trader::tweak_price_2(const FullAMMState& initial_state,
         auto p_real   = oracle.price[1];
         state.amm.price.p[1] = p_target + _adjustment_step * (p_real - p_target) / norm;
     }
-    state.compute(curve);
+    state.compute(*curve);
 
     {
         money xcp_profit_real = state.xcp / initial_state.xcp;

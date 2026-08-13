@@ -282,6 +282,42 @@ void PriceOracle::State::record(u64 t, const Prices& trade_price) {
     }
 }
 
+// ----------------------------------------------------------------
+// Factories
+// ----------------------------------------------------------------
+
+static std::vector<Curve* (*)(const JSON::ref&)> maker_function;
+
+Curve* makeCurve(const JSON& json) {
+    return makeCurve(json.as_ref());
+}
+Curve* makeCurve(const JSON::ref& json) {
+    for(auto f: maker_function) {
+        Curve *c = (*f)(json);
+        if( c ) {
+            return c;
+        }
+    }
+    return 0;
+}
+void register_curve_factory(Curve* (*fun)(const JSON::ref&)) {
+    maker_function.push_back(fun);
+}
+
+
+static Curve* make_stableswap(const JSON::ref& json) {
+    return new Curve(json);
+}
+
+namespace {
+    struct Init {
+        Init() {
+            register_curve_factory(make_stableswap);
+        }
+    };
+    Init _ini;
+}
+
 
 std::ostream& operator<<(std::ostream& o, const Tokens& tok) {
     o << '[' << tok[0] << ", " << tok[1] << ']';
