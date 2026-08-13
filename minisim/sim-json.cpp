@@ -66,6 +66,9 @@ const JSON::ref JSON::operator[](const char* k) const { return as_ref()[k]; }
 JSON::ref       JSON::operator[](int k)               { return as_ref()[k]; }
 const JSON::ref JSON::operator[](int k)         const { return as_ref()[k]; }
 
+JSON::operator int()         const { return as_ref(); }
+JSON::operator double()      const { return as_ref(); }
+JSON::operator long double() const { return as_ref(); }
 
 // ================================================================
 // Ref implementation
@@ -74,7 +77,6 @@ void JSON::ref::operator=(int i) {
     json *js = static_cast<json*>(m_ptr);
     *js = i;
 }
-
 void JSON::ref::operator=(double x) {
     json *js = static_cast<json*>(m_ptr);
     *js = x;
@@ -85,30 +87,25 @@ JSON::ref JSON::ref::operator[](const char* key) {
     json &child = (*js)[key];
     return JSON::ref(static_cast<void*>(&child));
 }
+
 const JSON::ref JSON::ref::operator[](const char* key) const {
     const json *js    = static_cast<const json*>(m_ptr);
     const json &child = (*js)[key];
     return JSON::ref((void*)(&child));
 }
 
-
 JSON::ref JSON::ref::operator[](int key) {
     json *js    = static_cast<json*>(m_ptr);
     json &child = (*js)[key];
     return JSON::ref(static_cast<void*>(&child));
 }
+
 const JSON::ref JSON::ref::operator[](int key) const {
     const json *js    = static_cast<json*>(m_ptr);
     const json &child = (*js)[key];
     return JSON::ref((void*)(&child));
 }
 
-
-JSON::ref::operator int() const {
-    const json *js = static_cast<json*>(m_ptr);
-    return *js;
-}
-JSON::ref::operator double() const {
-    const json *js = static_cast<json*>(m_ptr);
-    return *js;
-}
+JSON::ref::operator int()         const { return *static_cast<const json*>(m_ptr); }
+JSON::ref::operator double()      const { return *static_cast<const json*>(m_ptr); }
+JSON::ref::operator long double() const { return *static_cast<const json*>(m_ptr); }
