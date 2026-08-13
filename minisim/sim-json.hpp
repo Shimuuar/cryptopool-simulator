@@ -22,6 +22,11 @@ public:
     public:
         void operator=(int);
         void operator=(double);
+        void operator=(long double);
+
+        int size() const;
+        bool contains(const char*) const;
+        bool contains(const std::string&) const;
 
         ref       operator[](const char*);
         const ref operator[](const char*) const;
@@ -33,6 +38,7 @@ public:
         operator int()         const;
         operator double()      const;
         operator long double() const;
+        operator std::string() const;
     private:
         ref(void* ptr) : m_ptr(ptr) {}
         void* m_ptr;
@@ -45,9 +51,22 @@ public:
 
     // Default, same as nlohmann::json()
     JSON();
+    // Copy data
+    JSON(const JSON&      other);
+    JSON(const JSON::ref& other);
     // Move data from other
     JSON(JSON&& other);
     ~JSON();
+
+    int size() const;
+    bool contains(const char*) const;
+    bool contains(const std::string&) const;
+
+    void operator=(const JSON&);
+    void operator=(const JSON::ref&);
+    void operator=(int);
+    void operator=(double);
+    void operator=(long double);
 
     ref       operator[](const char*);
     const ref operator[](const char*) const;
@@ -59,6 +78,7 @@ public:
     operator int()         const;
     operator double()      const;
     operator long double() const;
+    operator std::string() const;
 
     ref       as_ref();
     const ref as_ref() const;

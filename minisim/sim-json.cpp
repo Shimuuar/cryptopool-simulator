@@ -8,7 +8,7 @@ using nlohmann::json;
 
 struct JSON::Impl {
     Impl() :
-        m_payload()
+        m_payload(nullptr)
     {}
 
     nlohmann::json m_payload;
@@ -21,6 +21,17 @@ JSON::~JSON() {}
 JSON::JSON() :
     m_json(new Impl())
 {}
+
+JSON::JSON(const JSON& other) :
+    JSON(other.as_ref())
+{}
+
+JSON::JSON(const JSON::ref& other) :
+    m_json(new Impl())
+{
+    const json* js = static_cast<const json*>(other.m_ptr);
+    m_json->m_payload = *js;
+}
 
 JSON::JSON(JSON&& other) :
     m_json(std::move(other.m_json))
@@ -53,6 +64,14 @@ const JSON::ref JSON::as_ref() const {
     return JSON::ref((void*)(ref));
 }
 
+void JSON::operator=(int         i) { as_ref() = i; }
+void JSON::operator=(double      x) { as_ref() = x; }
+void JSON::operator=(long double x) { as_ref() = x; }
+void JSON::operator=(const JSON& js) { *this = js.as_ref(); }
+void JSON::operator=(const JSON::ref& js) {
+    const json* js_ptr = static_cast<const json*>(js.m_ptr);
+    m_json->m_payload = *js_ptr;
+}
 
 JSON::ref       JSON::operator[](const char* k)              { return as_ref()[k]; }
 const JSON::ref JSON::operator[](const char* k)        const { return as_ref()[k]; }
@@ -64,18 +83,19 @@ const JSON::ref JSON::operator[](int k)                const { return as_ref()[k
 JSON::operator int()         const { return as_ref(); }
 JSON::operator double()      const { return as_ref(); }
 JSON::operator long double() const { return as_ref(); }
+JSON::operator std::string() const { return as_ref(); }
+
+int JSON::size() const { return as_ref().size(); }
+bool JSON::contains(const char*        k) const { return as_ref().contains(k); }
+bool JSON::contains(const std::string& k) const { return as_ref().contains(k); }
 
 // ================================================================
 // Ref implementation
 
-void JSON::ref::operator=(int i) {
-    json *js = static_cast<json*>(m_ptr);
-    *js = i;
-}
-void JSON::ref::operator=(double x) {
-    json *js = static_cast<json*>(m_ptr);
-    *js = x;
-}
+void JSON::ref::operator=(int         i) { *static_cast<json*>(m_ptr) = i; }
+void JSON::ref::operator=(double      x) { *static_cast<json*>(m_ptr) = x; }
+void JSON::ref::operator=(long double x) { *static_cast<json*>(m_ptr) = x; }
+
 
 JSON::ref JSON::ref::operator[](const char* key) {
     json *js    = static_cast<json*>(m_ptr);
@@ -116,3 +136,14 @@ const JSON::ref JSON::ref::operator[](int key) const {
 JSON::ref::operator int()         const { return *static_cast<const json*>(m_ptr); }
 JSON::ref::operator double()      const { return *static_cast<const json*>(m_ptr); }
 JSON::ref::operator long double() const { return *static_cast<const json*>(m_ptr); }
+JSON::ref::operator std::string() const { return *static_cast<const json*>(m_ptr); }
+
+int JSON::ref::size() const {
+    return static_cast<json*>(m_ptr)->size();
+}
+bool JSON::ref::contains(const char* k) const {
+    return static_cast<json*>(m_ptr)->contains(k);
+}
+bool JSON::ref::contains(const std::string& k) const {
+    return static_cast<json*>(m_ptr)->contains(k);
+}
