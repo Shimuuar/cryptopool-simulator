@@ -1,5 +1,5 @@
 .SUFFIXES:
-.PHONY: all clean test
+.PHONY: all clean test-run
 
 CXX      = g++
 CXXFLAGS = -Wall -g -O2 -std=c++17 -I..
@@ -17,8 +17,8 @@ all: main
 clean:
 	rm -fv *.o main
 
-test: main
-	bash test/run.sh
+test-run: main
+	bash test-data/run.sh
 
 main: ${OBJ}
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $+ -o $@
