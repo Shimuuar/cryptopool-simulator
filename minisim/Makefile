@@ -39,12 +39,12 @@ foo: sim-json.cpp.o foo.cpp.o
 ## ----------------------------------------------------------------
 ## Tests
 
-test: test/test_dummy
-	./test/test_dummy # --log_level=test_suite
+test: test/test
+	./test/test # --log_level=test_suite
 test-run: main
 	bash test-data/run.sh
 
-test/test_dummy: $(TEST_OBJ)
+test/test: $(TEST_OBJ)
 	$(CXX) $(CXXFLAGS_TEST) $< -o $@ $(LDFLAGS_TEST)
 test/%.cpp.o: test/%.cpp
 	$(CXX) $(CXXFLAGS_TEST) -MMD -c $< -o $@
