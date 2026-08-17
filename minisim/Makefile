@@ -4,7 +4,7 @@
 CXX           = g++
 CXXFLAGS      = -Wall -g -O2 -std=c++17 -I..
 LDFLAGS       =
-CXXFLAGS_TEST = $(CXXFLAGS) -DBOOST_TEST_DYN_LINK
+CXXFLAGS_TEST = $(CXXFLAGS) -DBOOST_TEST_DYN_LINK -I.
 LDFLAGS_TEST  = $(LDFLAGS) -lboost_unit_test_framework
 LIB_OBJ = \
 	simulation.cpp.o			\
@@ -45,7 +45,7 @@ test-run: main
 	bash test-data/run.sh
 
 test/test: $(TEST_OBJ) libminisim.a
-	$(CXX) $(CXXFLAGS_TEST) $< -o $@ $(LDFLAGS_TEST)
+	$(CXX) $(CXXFLAGS_TEST) $(TEST_OBJ) libminisim.a -o $@ $(LDFLAGS_TEST)
 test/%.cpp.o: test/%.cpp
 	$(CXX) $(CXXFLAGS_TEST) -MMD -c $< -o $@
 
