@@ -1,11 +1,8 @@
-// Dummy test suite skeleton using Boost.Test (header-only unit test framework).
-#define BOOST_TEST_MODULE minisim_tests
-#include <boost/test/unit_test.hpp>
+// Test suite uses Google Test (main() is provided by gtest_main).
+#include <gtest/gtest.h>
 #include "simulation.hpp"
 
-BOOST_AUTO_TEST_SUITE(minisim)
-
-BOOST_AUTO_TEST_CASE(curve) {
+TEST(minisim, curve) {
     Stableswap curve(5, 0);
     // Initial state
     AMMState   st0(1e6, Prices({1,10}));
@@ -18,7 +15,5 @@ BOOST_AUTO_TEST_CASE(curve) {
     st1.xs[n2] = curve.computeY(st0, st1.xs[n1], n1, n2);
     const money D1 = curve.computeD(st1);
     //
-    BOOST_CHECK_EQUAL(D0, D1);
+    EXPECT_EQ(D0, D1);
 }
-
-BOOST_AUTO_TEST_SUITE_END()

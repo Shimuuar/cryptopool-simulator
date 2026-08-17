@@ -4,8 +4,8 @@
 CXX           = g++
 CXXFLAGS      = -Wall -g -O2 -std=c++17 -I..
 LDFLAGS       =
-CXXFLAGS_TEST = $(CXXFLAGS) -DBOOST_TEST_DYN_LINK -I.
-LDFLAGS_TEST  = $(LDFLAGS) -lboost_unit_test_framework
+CXXFLAGS_TEST = $(CXXFLAGS) -I. $(shell pkg-config --cflags gtest_main)
+LDFLAGS_TEST  = $(LDFLAGS) $(shell pkg-config --libs gtest_main)
 LIB_OBJ = \
 	simulation.cpp.o			\
 	sim-threading.cpp.o			\
@@ -40,7 +40,7 @@ foo: sim-json.cpp.o foo.cpp.o
 ## Tests
 
 test: test/test
-	./test/test # --log_level=test_suite
+	./test/test
 test-run: main
 	bash test-data/run.sh
 
