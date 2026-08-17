@@ -6,8 +6,7 @@ CXXFLAGS      = -Wall -g -O2 -std=c++17 -I..
 LDFLAGS       =
 CXXFLAGS_TEST = $(CXXFLAGS) -DBOOST_TEST_DYN_LINK
 LDFLAGS_TEST  = $(LDFLAGS) -lboost_unit_test_framework
-OBJ      = \
-	main-stableswap-dynrate-lpf.cpp.o	\
+LIB_OBJ = \
 	simulation.cpp.o			\
 	sim-threading.cpp.o			\
 	sim-data.cpp.o				\
@@ -21,14 +20,15 @@ TEST_DEP = $(TEST_OBJ:.cpp.o=.cpp.d)
 
 all: main
 clean:
-	rm -fv *.o *.d main test/*.o test/*.d test/test_dummy
+	rm -fv *.o *.d *.a main test/*.o test/*.d test/test_dummy
 
 ## ----------------------------------------------------------------
 ## Main executable
 
-main: ${OBJ}
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $+ -o $@
-
+main: libminisim.a main-stableswap-dynrate-lpf.cpp.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) main-stableswap-dynrate-lpf.cpp.o libminisim.a -o $@
+libminisim.a: ${LIB_OBJ}
+	ar crs $@ $+
 # -MMD writes precise header deps to *.cpp.d
 %.cpp.o: %.cpp
 	$(CXX) $(CXXFLAGS) -MMD -c $< -o $@
@@ -44,7 +44,7 @@ test: test/test
 test-run: main
 	bash test-data/run.sh
 
-test/test: $(TEST_OBJ)
+test/test: $(TEST_OBJ) libminisim.a
 	$(CXX) $(CXXFLAGS_TEST) $< -o $@ $(LDFLAGS_TEST)
 test/%.cpp.o: test/%.cpp
 	$(CXX) $(CXXFLAGS_TEST) -MMD -c $< -o $@
