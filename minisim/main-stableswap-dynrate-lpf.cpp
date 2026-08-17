@@ -6,16 +6,12 @@
 #include <iostream>
 #include <cassert>
 #include <cstdio>
-#include <map>
 #include <string>
 #include <cstdlib>
 #include <vector>
 #include <algorithm>
-#include <utility>
 #include <stdexcept>
 #include <cmath>
-#include <fstream>
-#include <iomanip>
 
 using std::vector, std::string, std::min, std::max;
 
