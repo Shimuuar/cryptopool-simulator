@@ -1,5 +1,6 @@
 main
-test/test_*
+test-data/test_*
 *.o
+*.d
 detailed-output.json
 download
