@@ -6,7 +6,9 @@
 # If detailed outout is symlink make sure it exists
 touch detailed-output.json
 ./main test-data/conf.json test-data/test_out.json | grep -E '^t=' > test-data/test_stdout.txt
-
+if [ $? != 0 ]; then
+   exit 1
+fi
 RES=0
 if [ "$(sha1sum < test-data/test_stdout.txt)" != "$(sha1sum < test-data/stdout.txt)" ]; then
     echo "==== STDOUT MISMATCH ===="
