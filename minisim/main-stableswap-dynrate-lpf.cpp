@@ -545,41 +545,48 @@ int main(int argc, char **argv) {
         THREADS = atoi(argv[1]+8);
         argc--; argv++;
     }
+
     string in_json_name = argc > 1 ? argv[1] : "sample_in.json";
     string out_json_name = argc > 2 ? argv[2] : "sample_out.json";
     double real_time_start = get_total_time();
-    JSON jin;
-    jin.load_file(in_json_name);
-    int configurations = jin["configuration"].size();
-    if (configurations <= 0) {
-        printf("No configurations found\n");
-        return 0;
+    //
+    try {
+        JSON jin;
+        jin.load_file(in_json_name);
+        int configurations = jin["configuration"].size();
+        if (configurations <= 0) {
+            printf("No configurations found\n");
+            return 0;
+        }
+        printf("Total %d configurations will be processed in %d threads\n", configurations, THREADS);
+        std::unique_ptr<TradeDataArray> test_data(get_all(jin, LAST_ELEMS));
+
+        double time_start      = get_total_time();
+        double wall_time_start = get_wall_time();
+        WorkQueue work_queue(THREADS);
+        JSON result = jin;
+        for (int i = 0; i < configurations; i++) {
+            simulation_data cd;
+            cd.num = i;
+            cd.test_data = &*test_data;
+            cd.jconf = jin["configuration"][i];
+            work_queue.enqueue(new SimulationTask(cd, &result));
+        }
+        work_queue.start();
+        work_queue.join();
+
+        result.save_file(out_json_name);
+        double time_end = get_total_time();
+        double wall_time_end = get_wall_time();
+        print_clock("Data reading and preprocessing time", real_time_start, time_start);
+        print_clock("Total simulation wall time", wall_time_start, wall_time_end);
+        print_clock("Total simulation processor time", time_start, time_end);
+        printf("Parallelizm ratio %.5lf\n", (time_end - time_start) / (wall_time_end - wall_time_start));
     }
-
-    printf("Total %d configurations will be processed in %d threads\n", configurations, THREADS);
-
-    std::unique_ptr<TradeDataArray> test_data(
-        get_all(jin, LAST_ELEMS));
-    double time_start      = get_total_time();
-    double wall_time_start = get_wall_time();
-
-    WorkQueue work_queue(THREADS);
-    JSON result = jin;
-    for (int i = 0; i < configurations; i++) {
-        simulation_data cd;
-        cd.num = i;
-        cd.test_data = &*test_data;
-        cd.jconf = jin["configuration"][i];
-        work_queue.enqueue(new SimulationTask(cd, &result));
+    catch ( const std::exception &e ) {
+        std::cerr << "Error:   " << e.what()         << std::endl;
+        std::cerr << "Of type: " << typeid(e).name() << std::endl;
+        return 1;
     }
-    work_queue.start();
-    work_queue.join();
-
-    result.save_file(out_json_name);
-    double time_end = get_total_time();
-    double wall_time_end = get_wall_time();
-    print_clock("Data reading and preprocessing time", real_time_start, time_start);
-    print_clock("Total simulation wall time", wall_time_start, wall_time_end);
-    print_clock("Total simulation processor time", time_start, time_end);
-    printf("Parallelizm ratio %.5lf\n", (time_end - time_start) / (wall_time_end - wall_time_start));
+    return 0;
 }
