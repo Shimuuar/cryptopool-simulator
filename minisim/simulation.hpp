@@ -126,10 +126,6 @@ struct Trade {
 // ----------------------------------------------------------------
 
 
-Curve* makeCurve(const JSON&);
-Curve* makeCurve(const JSON::ref&);
-void register_curve_factory(Curve* (*)(const JSON::ref&));
-
 // Definition of AMM curve
 class Curve {
 public:
@@ -148,7 +144,21 @@ public:
     virtual money computeXcp(const AMMState& st) const = 0;
     // Compute value of invariant D
     virtual money computeD(const AMMState& st) const = 0;
+
+    // ----------------------------------------
+    // Factory
+
+    // Create new curve from JSON value. Facory is dispatched on name
+    static Curve* make(const std::string&, const JSON&);
+    // Create new curve from JSON value.
+    static Curve* make(const std::string&, const JSON::ref&);
+
+    // Register function which can create new curve object.
+    static void registerFactory(const std::string&, Curve* (*)(const JSON::ref&));
 };
+
+
+
 
 class Stableswap : public Curve{
 public:
@@ -208,6 +218,22 @@ struct PriceOracle {
 
     money ma_half_time;
 };
+
+
+// ----------------------------------------------------------------
+// Factories
+
+template<typename T>
+struct RegisterCurveFactory {
+    RegisterCurveFactory(const std::string& name) {
+        Curve::registerFactory(
+            "stableswap",
+            [](const JSON::ref& json) -> Curve* {
+                return new T(json);
+            });
+    }
+};
+
 
 // ----------------------------------------------------------------
 // Helper

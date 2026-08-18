@@ -2,6 +2,7 @@
 #include "simulation.hpp"
 #include <stdexcept>
 #include <cmath>
+#include <map>
 #include <iostream>
 
 
@@ -112,7 +113,7 @@ Stableswap::Stableswap(const JSON& json) :
     A(json["A"]),
     gamma(json["gamma"])
 {}
-    
+static RegisterCurveFactory<Stableswap> reg_stableswap("stableswap");
 
 money Stableswap::computeD(const AMMState& st) const {
     TokensXP xp(st);
@@ -286,38 +287,36 @@ void PriceOracle::State::record(u64 t, const Prices& trade_price) {
 // Factories
 // ----------------------------------------------------------------
 
-static std::vector<Curve* (*)(const JSON::ref&)> maker_function;
+using make_curve     = Curve* (*)(const JSON::ref&);
+using make_curve_map = std::map<std::string, make_curve>;
 
-Curve* makeCurve(const JSON& json) {
-    return makeCurve(json.as_ref());
+static make_curve_map& get_factory_map() {
+    static make_curve_map dat;
+    return dat;
 }
-Curve* makeCurve(const JSON::ref& json) {
-    for(auto f: maker_function) {
-        Curve *c = (*f)(json);
-        if( c ) {
-            return c;
-        }
+
+Curve* Curve::make(const std::string& name, const JSON& json) {
+    return Curve::make(name, json.as_ref());
+}
+
+Curve* Curve::make(const std::string& name, const JSON::ref& json) {
+    make_curve_map& data = get_factory_map();
+    if( data.contains(name) ) {
+        make_curve fun = data[name];
+        return fun(json);
     }
-    return 0;
-}
-void register_curve_factory(Curve* (*fun)(const JSON::ref&)) {
-    maker_function.push_back(fun);
+    return nullptr;
 }
 
-
-static Curve* make_stableswap(const JSON::ref& json) {
-    return new Stableswap(json);
+void Curve::registerFactory(const std::string& name, make_curve fun) {
+    make_curve_map& data = get_factory_map();
+    data[name] = fun;
 }
 
-namespace {
-    struct Init {
-        Init() {
-            register_curve_factory(make_stableswap);
-        }
-    };
-    Init _ini;
-}
 
+// ----------------------------------------------------------------
+// Helpers
+// ----------------------------------------------------------------
 
 std::ostream& operator<<(std::ostream& o, const Tokens& tok) {
     o << '[' << tok[0] << ", " << tok[1] << ']';
