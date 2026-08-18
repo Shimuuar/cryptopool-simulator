@@ -3,6 +3,7 @@
 #include "sim-data.hpp"
 #include "sim-json.hpp"
 
+#include <getopt.h>
 #include <iostream>
 #include <cassert>
 #include <cstdio>
@@ -529,41 +530,73 @@ void SimulationTask::fini() {
     dst["imbalance_integral"] = simdata.result.imbalance_integral;
 }
 
-int main(int argc, char **argv) {
-    if (argc == 1) {
-        printf("Usage: %s [trim] [threads=#] [in-json-file] [out-json-file]\n", argv[0]);
-        return 0;
-    }
-    int LAST_ELEMS = 0;
-    if (argc > 1 && std::string(argv[1]).find("trim") != std::string::npos) {
-        if (argv[1][4] == 0) LAST_ELEMS = 1000000;
-        else                 LAST_ELEMS = atoi(argv[1]+4);
-        argc--; argv++;
-    }
-    int THREADS = 1;
-    if (argc > 1 && std::string(argv[1]).find("threads=") != std::string::npos) {
-        THREADS = atoi(argv[1]+8);
-        argc--; argv++;
-    }
 
-    string in_json_name = argc > 1 ? argv[1] : "sample_in.json";
-    string out_json_name = argc > 2 ? argv[2] : "sample_out.json";
-    double real_time_start = get_total_time();
-    //
+static void usage(std::ostream& out) {
+    out << "Usage: foo [options] <job.json>\n"
+        << "  --threads N         run using number of threads (default: 1)\n"
+        << "  --trim N            use only N last elements in time series\n"
+        << "  -r, --result FILE   write summary results to FILE\n";
+}
+
+int main(int argc, char **argv) {
+    int param_threads = 1;
+    int param_trim    = 0;
+    std::string job_file;
+    std::string result_file;
+    // Parse command line arguments using getopt
+    {
+        static const option long_opts[] = {
+            {"threads", required_argument, nullptr, 't'},
+            {"trim",    required_argument, nullptr, 1001},
+            {"result",  required_argument, nullptr, 'r'},
+            {"help",    no_argument,       nullptr, 'h'},
+            {nullptr, 0, nullptr, 0}
+        };
+        while(true) {
+            int opt = getopt_long(argc, argv, "t:r:h", long_opts, nullptr);
+            if( opt == -1 ) { break; }
+            switch (opt) {
+            case 't':
+                param_threads = std::stoi(optarg);
+                break;
+            case 1001:
+                param_trim = std::stoi(optarg);
+                break;
+            case 'r':
+                result_file = optarg;
+                break;
+            case 'h':
+                usage(std::cout);
+                return 0;
+            default:
+                return 1;
+            }
+        }
+        if (optind >= argc) {
+            std::cerr << "Error: missing mandatory positional argument\n";
+            return 1;
+        } else if (optind + 1 < argc) {
+            std::cerr << "Error: too many positional arguments\n";
+            return 1;
+        }
+        job_file = argv[optind];
+    }
+    // Run simultion 
     try {
+        double real_time_start = get_total_time();
         JSON jin;
-        jin.load_file(in_json_name);
+        jin.load_file(job_file);
         int configurations = jin["configuration"].size();
         if (configurations <= 0) {
             printf("No configurations found\n");
             return 0;
         }
-        printf("Total %d configurations will be processed in %d threads\n", configurations, THREADS);
-        std::unique_ptr<TradeDataArray> test_data(get_all(jin, LAST_ELEMS));
+        printf("Total %d configurations will be processed in %d threads\n", configurations, param_threads);
+        std::unique_ptr<TradeDataArray> test_data(get_all(jin, param_trim));
 
         double time_start      = get_total_time();
         double wall_time_start = get_wall_time();
-        WorkQueue work_queue(THREADS);
+        WorkQueue work_queue(param_threads);
         JSON result = jin;
         for (int i = 0; i < configurations; i++) {
             simulation_data cd;
@@ -575,7 +608,7 @@ int main(int argc, char **argv) {
         work_queue.start();
         work_queue.join();
 
-        result.save_file(out_json_name);
+        result.save_file(result_file);
         double time_end = get_total_time();
         double wall_time_end = get_wall_time();
         print_clock("Data reading and preprocessing time", real_time_start, time_start);
