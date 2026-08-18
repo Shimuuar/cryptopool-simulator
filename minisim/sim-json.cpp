@@ -45,14 +45,9 @@ void JSON::load_file(const std::string& path) {
     ifl >> m_json->m_payload;
 }
 
-void JSON::save_file(const std::string &name) {
-    std::ofstream ofl(name);
-    if (!ofl) {
-        throw std::logic_error("can't create file " + name);
-    }
-    ofl << std::setw(4) << m_json->m_payload << "\n";
+void JSON::save_file(const std::string &name) const {
+    as_ref().save_file(name);
 }
-
 
 JSON::ref JSON::as_ref() {
     json* ref = &m_json->m_payload;
@@ -96,6 +91,14 @@ void JSON::ref::operator=(int         i) { *static_cast<json*>(m_ptr) = i; }
 void JSON::ref::operator=(double      x) { *static_cast<json*>(m_ptr) = x; }
 void JSON::ref::operator=(long double x) { *static_cast<json*>(m_ptr) = x; }
 
+void JSON::ref::save_file(const std::string &name) const {
+    std::ofstream ofl(name);
+    if (!ofl) {
+        throw std::logic_error("can't create file " + name);
+    }
+    const json *js = static_cast<const json*>(m_ptr);
+    ofl << std::setw(4) << *js << "\n";
+}
 
 JSON::ref JSON::ref::operator[](const char* key) {
     json *js    = static_cast<json*>(m_ptr);

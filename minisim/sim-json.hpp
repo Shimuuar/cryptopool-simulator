@@ -28,6 +28,8 @@ public:
         bool contains(const char*) const;
         bool contains(const std::string&) const;
 
+        void save_file(const std::string& path) const;
+
         ref       operator[](const char*);
         const ref operator[](const char*) const;
         ref       operator[](const std::string&);
@@ -47,7 +49,7 @@ public:
 
 
     void load_file(const std::string& path);
-    void save_file(const std::string& path);
+    void save_file(const std::string& path) const;
 
     // Default, same as nlohmann::json()
     JSON();
