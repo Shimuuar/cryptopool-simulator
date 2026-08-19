@@ -307,9 +307,9 @@ Curve* Curve::make(const std::string& name, const JSON& json) {
 
 Curve* Curve::make(const std::string& name, const JSON::ref& json) {
     make_curve_map& data = get_factory_map();
-    if( data.contains(name) ) {
-        make_curve fun = data[name];
-        return fun(json);
+    auto it = data.find(name);
+    if( it != data.end() ) {
+        return it->second(json);
     }
     return nullptr;
 }
