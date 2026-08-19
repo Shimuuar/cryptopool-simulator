@@ -56,4 +56,4 @@ build/test/%.cpp.o: test/%.cpp
 
 ## ----------------------------------------------------------------
 ## Auto-generated header dependencies
--include $(DEP) $(TEST_DEP)
+-include $(LIB_DEP) $(TEST_DEP) build/main-stableswap-dynrate-lpf.cpp.d
