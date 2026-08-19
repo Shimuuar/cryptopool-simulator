@@ -59,7 +59,7 @@ struct Trader {
         fee_model(jconf),
         ext_fee(jconf["ext_fee"]),
         gas_fee(jconf["gas_fee"]),
-        curve(Curve::make("stableswap", jconf)),
+        curve(Curve::make(jconf["curve"])),
         state0(jconf["D"], p0)
     {
         if( !curve ) {

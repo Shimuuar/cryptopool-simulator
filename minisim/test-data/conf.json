@@ -1,6 +1,11 @@
 {
     "configuration": [
         {
+            "curve": {
+                "type": "curve_Agamma",
+                "A": 5,
+                "gamma": 0
+            },
             "D": 20000000.0,
             "adjustment_step": 0.005,
             "fee_gamma": 0.005125,
@@ -12,9 +17,7 @@
             "log": 1,
             "allowed_extra_profit": 1e-10,
             "ext_fee": 0.0002,
-            "gamma": 0,
             "boost_rate": 0.016,
-            "A": 5,
             "lp_profit_fraction": 0.4049,
             "boost_mul": 1,
             "boost_min": 0

@@ -113,7 +113,7 @@ Stableswap::Stableswap(const JSON& json) :
     A(json["A"]),
     gamma(json["gamma"])
 {}
-static RegisterCurveFactory<Stableswap> reg_stableswap("stableswap");
+static RegisterCurveFactory<Stableswap> reg_stableswap("curve_Agamma");
 
 money Stableswap::computeD(const AMMState& st) const {
     TokensXP xp(st);

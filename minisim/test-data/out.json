@@ -1,7 +1,6 @@
 {
     "configuration": [
         {
-            "A": 5,
             "D": 20000000.0,
             "Result": {
                 "APR_geo_mean": 0.0,
@@ -18,9 +17,13 @@
             "boost_min": 0,
             "boost_mul": 1,
             "boost_rate": 0.016,
+            "curve": {
+                "A": 5,
+                "gamma": 0,
+                "type": "curve_Agamma"
+            },
             "ext_fee": 0.0002,
             "fee_gamma": 0.005125,
-            "gamma": 0,
             "gas_fee": 0,
             "log": 1,
             "lp_profit_fraction": 0.4049,
