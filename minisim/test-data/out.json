@@ -20,7 +20,7 @@
             "curve": {
                 "A": 5,
                 "gamma": 0,
-                "type": "curve_Agamma"
+                "type": "stableswap"
             },
             "ext_fee": 0.0002,
             "fee_gamma": 0.005125,

@@ -33,7 +33,7 @@ static money geometric_mean_2(const TokensXP &x) {
 }
 
 
-static money newton_D_2(money A, money gamma, const TokensXP &xx, money D0) {
+static money newton_D_2(money A, const TokensXP &xx, money D0) {
     // ***
     // This now uses stableswap invariant (because invariants are pluggable)
     // ***
@@ -61,7 +61,7 @@ static money newton_D_2(money A, money gamma, const TokensXP &xx, money D0) {
     throw std::logic_error("Newton_D: did not converge");
 }
 
-static money newton_y(money A, money gamma, const TokensXP& x, money D, int i) {
+static money newton_y(money A, const TokensXP& x, money D, int i) {
     // ***
     // This now uses stableswap invariant (because invariants are pluggable)
     // ***
@@ -84,7 +84,7 @@ static money newton_y(money A, money gamma, const TokensXP& x, money D, int i) {
     throw std::logic_error("Did not converge");
 }
 
-static money get_p_2(const TokensXP& x, money D, money A, money gamma) {
+static money get_p_2(const TokensXP& x, money D, money A) {
     money ANN = A * 2.;
     money Dr = D / 4.;
     for (size_t idx = 0; idx < 2; ++idx) {
@@ -95,43 +95,41 @@ static money get_p_2(const TokensXP& x, money D, money A, money gamma) {
         (xp0_A + Dr * x[0] / x[1]) / (xp0_A + Dr);
 }
 
-static money solve_x(money A, money gamma, const TokensXP& x, money D, int i) {
-    return newton_y(A, gamma, x, D, i);
+static money solve_x(money A, const TokensXP& x, money D, int i) {
+    return newton_y(A, x, D, i);
 }
 
-static money solve_D(money A, money gamma, const TokensXP &x) {
+static money solve_D(money A, const TokensXP &x) {
     auto D0 = 2 * geometric_mean_2(x); //  # <- fuzz to make sure it's ok XXX
-    return newton_D_2(A, gamma, x, D0);
+    return newton_D_2(A, x, D0);
 }
 
 
-Stableswap::Stableswap(money _A, money _gamma) :
-    A(_A),
-    gamma(_gamma)
+Stableswap::Stableswap(money _A) :
+    A(_A)
 {}
-Stableswap::Stableswap(const JSON& json) :
-    A(json["A"]),
-    gamma(json["gamma"])
+Stableswap::Stableswap(const JSON::ref& json) :
+    A(json["A"])
 {}
-static RegisterCurveFactory<Stableswap> reg_stableswap("curve_Agamma");
+static RegisterCurveFactory<Stableswap> reg_stableswap("stableswap");
 
 money Stableswap::computeD(const AMMState& st) const {
     TokensXP xp(st);
-    auto ret = solve_D(A, gamma, xp);
+    auto ret = solve_D(A, xp);
     return ret;
 }
 
 money Stableswap::computeY(const AMMState& st, money x, int i, int j) const {
     TokensXP xp(st);
     xp[i] = x * st.price[i];
-    auto yp = solve_x(A, gamma, xp, computeD(st), j);
+    auto yp = solve_x(A, xp, computeD(st), j);
     auto ret = yp / st.price[j];
     return ret;
 }
 
 money Stableswap::computeP(const AMMState& st) const {
     TokensXP xp(st);
-    auto p = get_p_2(xp, computeD(st), this->A, this->gamma);
+    auto p = get_p_2(xp, computeD(st), this->A);
     return p;
 }
 

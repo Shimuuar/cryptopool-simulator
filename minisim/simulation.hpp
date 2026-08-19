@@ -168,8 +168,8 @@ public:
 
 class Stableswap : public Curve{
 public:
-    Stableswap(money _A, money _gamma);
-    Stableswap(const JSON& json);
+    explicit Stableswap(money _A);
+    explicit Stableswap(const JSON::ref& json);
     ~Stableswap() = default;
 
     virtual money computeY(const AMMState& st, money x, int i, int j) const;
@@ -179,7 +179,6 @@ public:
 
 public:
     money A;
-    money gamma;
 };
 
 // Interface for computing fee _and_ boost rate. They seems to be

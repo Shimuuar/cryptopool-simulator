@@ -70,8 +70,8 @@ TEST_P(CurveTest, DisLinear) {
 
 
 namespace {
-    Stableswap stableswap_1(5,  0);
-    Stableswap stableswap_2(50, 0.1);
+    Stableswap stableswap_1(5);
+    Stableswap stableswap_2(50);
 }
 
 INSTANTIATE_TEST_SUITE_P(Minisim, CurveTest,

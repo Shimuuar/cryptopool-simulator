@@ -2,7 +2,7 @@
     "configuration": [
         {
             "curve": {
-                "type": "curve_Agamma",
+                "type": "stableswap",
                 "A": 5,
                 "gamma": 0
             },
