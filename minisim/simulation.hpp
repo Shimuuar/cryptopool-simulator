@@ -233,7 +233,7 @@ template<typename T>
 struct RegisterCurveFactory {
     RegisterCurveFactory(const std::string& name) {
         Curve::registerFactory(
-            "stableswap",
+            name,
             [](const JSON::ref& json) -> Curve* {
                 return new T(json);
             });
