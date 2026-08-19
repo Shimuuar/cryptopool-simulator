@@ -82,8 +82,6 @@ struct Trader {
         this->not_adjusted = false;
     }
 
-    money step_for_price_2(const AMMState& state, money p_min, money p_max, money vol, money ext_vol);
-
     void tweak_price_2(const FullAMMState& initial_state,
                        const FullAMMState& oldstate,
                        FullAMMState& state, u64 t, money spot_prev,
@@ -106,7 +104,18 @@ struct Trader {
     AMMState state0;
 };
 
-money Trader::step_for_price_2(const AMMState& state0, money p_min, money p_max, money vol, money ext_vol) {
+money step_for_price_2(
+    const AMMState& state0,
+    money p_min,
+    money p_max,
+    money vol,
+    money ext_vol,
+    const Curve& curve,
+    const Fee&   fee_model,
+    money gas_fee,
+    money dx
+    )
+{
     AMMState state = state0;
     Tokens x0 = state.xs;
     money _dx = 0;
@@ -137,11 +146,11 @@ money Trader::step_for_price_2(const AMMState& state0, money p_min, money p_max,
         // sell -> x: second, y: first
 
         x = x0[_from] + _dx;
-        y = curve->computeY(state, x, _from, _to);
+        y = curve.computeY(state, x, _from, _to);
 
         state.xs[_from] = x;
         state.xs[_to] = y;
-        auto fee_mul = 1.L - this->fee_model.computeFee(state);
+        auto fee_mul = 1.L - fee_model.computeFee(state);
 
         _dy = (x0[_to] - y) * fee_mul;
         state.xs[_to] = x0[_to] - _dy;
@@ -192,11 +201,11 @@ money Trader::step_for_price_2(const AMMState& state0, money p_min, money p_max,
             _dx = _dx_prev + step;
 
             x = x0[_from] + _dx;
-            y = curve->computeY(state, x, _from, _to);
+            y = curve.computeY(state, x, _from, _to);
 
             state.xs[_from] = x;
             state.xs[_to] = y;
-            auto fee_mul = 1.L - this->fee_model.computeFee(state);
+            auto fee_mul = 1.L - fee_model.computeFee(state);
 
             _dy = (x0[_to] - y) * fee_mul;
             state.xs[_to] = x0[_to] - _dy;
@@ -300,7 +309,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             if ((max_price != 0) & (max_price > state.price)) {
                 // External Y price is higher. AMM will buy X from and
                 // sell Y to arbitrageurs
-                auto step = step_for_price_2(state.amm, 0, max_price, 0, ext_vol);
+                auto step = step_for_price_2(state.amm, 0, max_price, 0, ext_vol, *curve, fee_model, gas_fee, dx);
                 if (step > 0) {
                     trade_happened = true;
                     trade = Trade(Trade::BUY, step, a, b, state.amm, *curve);
@@ -308,7 +317,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             } else if((min_price != 0) && (min_price < state.price)) {
                 // External Y price is lower. AMM will buy Y from and
                 // sell X to arbitrageurs
-                auto step = step_for_price_2(state.amm, min_price, 0, 0, ext_vol);
+                auto step = step_for_price_2(state.amm, min_price, 0, 0, ext_vol, *curve, fee_model, gas_fee, dx);
                 if (step > 0) {
                     trade_happened = true;
                     trade = Trade(Trade::BUY, step, b, a, state.amm, *curve);
