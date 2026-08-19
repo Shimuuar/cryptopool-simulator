@@ -148,9 +148,15 @@ public:
     // ----------------------------------------
     // Factory
 
-    // Create new curve from JSON value. Facory is dispatched on name
+    // Create new curve from JSON value. Factory is dispatched on
+    // json["type"]
+    static Curve* make(const JSON&);
+    // Create new curve from JSON value. Factory is dispatched on
+    // json["type"]
+    static Curve* make(const JSON::ref&);
+    // Create new curve from JSON value. Factory is dispatched on name
     static Curve* make(const std::string&, const JSON&);
-    // Create new curve from JSON value.
+    // Create new curve from JSON value. Factory is dispatched on name
     static Curve* make(const std::string&, const JSON::ref&);
 
     // Register function which can create new curve object.

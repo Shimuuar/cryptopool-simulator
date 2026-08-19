@@ -295,6 +295,14 @@ static make_curve_map& get_factory_map() {
     return dat;
 }
 
+Curve* Curve::make(const JSON& json) {
+    return Curve::make(json["type"], json.as_ref());
+}
+
+Curve* Curve::make(const JSON::ref& json) {
+    return Curve::make(json["type"], json);
+}
+
 Curve* Curve::make(const std::string& name, const JSON& json) {
     return Curve::make(name, json.as_ref());
 }
