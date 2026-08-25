@@ -4,6 +4,7 @@
 #include <sys/time.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <iostream>
 #include <queue>
 #include <cassert>
 
@@ -142,7 +143,17 @@ static void* worker(void* dat) {
             worker = param->queue->front();
             param->queue->pop();
         }
-        worker->work();
+        // Do work. On exception terminate program slightly more
+        // gracefully than core dump
+        try {
+            worker->work();
+        }
+        catch ( const std::exception &e ) {
+            std::cerr << "Error:   " << e.what()         << std::endl;
+            std::cerr << "Of type: " << typeid(e).name() << std::endl;
+            exit(1);
+        }
+        // Finalization
         {
             TakenMutex(param->lock_result);
             worker->fini();
