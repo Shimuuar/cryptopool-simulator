@@ -123,7 +123,6 @@ money step_for_price_2(
     const AMMState& state0,
     money p_min,
     money p_max,
-    money vol,
     money ext_vol,
     const Curve& curve,
     const Fee&   fee_model,

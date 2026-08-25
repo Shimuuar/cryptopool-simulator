@@ -162,7 +162,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             if ((max_price != 0) & (max_price > state.price)) {
                 // External Y price is higher. AMM will buy X from and
                 // sell Y to arbitrageurs
-                auto step = step_for_price_2(state.amm, 0, max_price, 0, ext_vol, *curve, fee_model, gas_fee, dx);
+                auto step = step_for_price_2(state.amm, 0, max_price, ext_vol, *curve, fee_model, gas_fee, dx);
                 if (step > 0) {
                     trade_happened = true;
                     trade = Trade(Trade::BUY, step, a, b, state.amm, *curve);
@@ -170,7 +170,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             } else if((min_price != 0) && (min_price < state.price)) {
                 // External Y price is lower. AMM will buy Y from and
                 // sell X to arbitrageurs
-                auto step = step_for_price_2(state.amm, min_price, 0, 0, ext_vol, *curve, fee_model, gas_fee, dx);
+                auto step = step_for_price_2(state.amm, min_price, 0, ext_vol, *curve, fee_model, gas_fee, dx);
                 if (step > 0) {
                     trade_happened = true;
                     trade = Trade(Trade::BUY, step, b, a, state.amm, *curve);

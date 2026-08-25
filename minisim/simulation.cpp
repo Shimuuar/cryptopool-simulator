@@ -219,7 +219,6 @@ money step_for_price_2(
     const AMMState& state0,
     money p_min,
     money p_max,
-    money vol,
     money ext_vol,
     const Curve& curve,
     const Fee&   fee_model,
@@ -272,7 +271,7 @@ money step_for_price_2(
         } else {
             price = _dy / _dx;
         }
-        auto v = vol + _dy * state.price[_to];
+        auto v = _dy * state.price[_to];
 
         state.xs = x0;  // restore the state
 
@@ -327,7 +326,7 @@ money step_for_price_2(
             else {
                 price = _dy / _dx;
             }
-            auto v = vol + _dy * state.price[_to];
+            auto v =  _dy * state.price[_to];
             state.xs = x0;  // restore the state
 
             // _from == p.first - buy
