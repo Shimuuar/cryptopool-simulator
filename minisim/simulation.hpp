@@ -182,14 +182,26 @@ public:
     explicit Stableswap(const JSON::ref& json);
     ~Stableswap() = default;
 
-    virtual money computeY(const AMMState& st, money x, int i, int j) const;
-    virtual money computeP(const AMMState& st) const;
-    virtual money computeXcp(const AMMState& st) const;
-    virtual money computeD(const AMMState& st) const;
-
+    virtual money computeY(const AMMState& st, money x, int i, int j) const override;
+    virtual money computeP(const AMMState& st)   const override;
+    virtual money computeXcp(const AMMState& st) const override;
+    virtual money computeD(const AMMState& st)   const override;
 public:
     money A;
 };
+
+class ConstantProduct : public Curve{
+public:
+    explicit ConstantProduct();
+    explicit ConstantProduct(const JSON::ref& json);
+    ~ConstantProduct() = default;
+
+    virtual money computeY(const AMMState& st, money x, int i, int j) const override;
+    virtual money computeP(const AMMState& st)   const override;
+    virtual money computeXcp(const AMMState& st) const override;
+    virtual money computeD(const AMMState& st)   const override;
+};
+
 
 // Interface for computing fee _and_ boost rate. They seems to be
 // rather interwined

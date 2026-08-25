@@ -114,11 +114,13 @@ TEST_P(CurveTest, DisLinear) {
 
 
 namespace {
-    Stableswap stableswap_1(5);
-    Stableswap stableswap_2(50);
+    Stableswap      stableswap_1(5);
+    Stableswap      stableswap_2(50);
+    ConstantProduct constant_prod;
 }
 
 INSTANTIATE_TEST_SUITE_P(Minisim, CurveTest,
                          ::testing::Values(&stableswap_1,
-                                           &stableswap_2
+                                           &stableswap_2,
+                                           &constant_prod
                              ));

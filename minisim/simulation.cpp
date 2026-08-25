@@ -146,6 +146,31 @@ money Stableswap::computeXcp(const AMMState& st) const {
 
 
 // ----------------------------------------------------------------
+// -- Curve: constant product
+// ----------------------------------------------------------------
+
+ConstantProduct::ConstantProduct() = default;
+ConstantProduct::ConstantProduct(const JSON::ref& json) {}
+static RegisterCurveFactory<ConstantProduct> reg_constant_product("constant_product");
+
+money ConstantProduct::computeY(const AMMState& st, money x, int i, int j) const {
+    const money inv = st.xs[0] * st.xs[1];
+    return inv / x;
+}
+
+money ConstantProduct::computeP(const AMMState& st) const {
+    return st.xs[0] / st.xs[1] / st.price[1];
+}
+
+money ConstantProduct::computeXcp(const AMMState& st) const {
+    return sqrtl(4 * st.xs[0] * st.xs[1]) / 2;
+}
+money ConstantProduct::computeD(const AMMState& st) const {
+    return sqrtl(4 * st.xs[0] * st.xs[1]);
+}
+
+
+// ----------------------------------------------------------------
 // -- AMM state
 // ----------------------------------------------------------------
 
