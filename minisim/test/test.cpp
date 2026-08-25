@@ -113,6 +113,89 @@ TEST_P(CurveTest, DisLinear) {
 }
 
 
+// These tests determine sematics of 
+TEST(StepCalculation, Simple) {
+    // We use uniswap as simple reference for veryfying semantics of
+    // step_for_price_2
+    ConstantProduct curve;
+    const money     fee_amount = 0.01;    
+    FlatFee         fee(fee_amount, 0.0);
+    FlatFee         zero_fee(0.0, 0.0);
+    AMMState        st0(2e6, Prices({1,10}));
+    const money     P = st0.price[1];
+    EXPECT_NEAR(P, curve.computePrice(st0), 1e-12) << "Initial price";
+    // Zero fee case. It should provide same answer as simple on-curve
+    // trade
+    {
+        const money dP = 0.1 * P;
+        money step_x = step_for_price_2(
+            st0,
+            0, P + dP,
+            1e100,
+            curve, zero_fee, 0, 1e-8*2e6
+            );
+        AMMState st = st0;
+        st.xs[0] += step_x;
+        st.xs[1]  = curve.computeY(st0, st.xs[0], 0, 1);
+        EXPECT_NEAR( P+dP, curve.computePrice(st), 1e-6) << "After trade (0 fee) dP>0";
+    }
+    {
+        const money dP = -0.1 * P;
+        money step_x = step_for_price_2(
+            st0,
+            P + dP, 0,
+            1e100,
+            curve, zero_fee, 0, 1e-8*2e6
+            );
+        AMMState st = st0;
+        st.xs[1] += step_x;
+        st.xs[0]  = curve.computeY(st0, st.xs[1], 1, 0);
+        EXPECT_NEAR( P+dP, curve.computePrice(st), 1e-6) << "After trade (0 fee) dP<0";
+    }
+    // Nonzero fee case. It should provide same answer as simple on-curve
+    // deal
+    //
+    // {
+    //     const money dP = 0.1 * P;
+    //     money step_x = step_for_price_2(
+    //         st0,
+    //         0, P + dP,
+    //         1e100,
+    //         curve, zero_fee, 0, 1e-8*2e6
+    //         );
+    //     // AMMState st = st0;
+    //     // st.xs[0] += step_x;
+    //     // st.xs[1]  = curve.computeY(st0, st.xs[0], 0, 1);
+
+    //     Trade trade     = Trade(Trade::BUY, step_x, 0, 1, st0, curve);
+    //     Trade trade_fee = trade.applyFee(fee.computeTradeFee(st0, trade));
+    //     AMMState st(st0, trade_fee);
+    //     EXPECT_NEAR( (P + dP), curve.computePrice(st), 1e-6)
+    //         << "After trade (with fee) dP>0"
+    //         << std::endl << step_x
+    //         << std::endl << trade 
+    //         << std::endl << trade_fee
+    //         << std::endl << st0
+    //         << std::endl << st
+    //         << std::endl << P + dP
+    //         << std::endl << curve.computePrice(st)
+    //         ;
+    // }
+    // {
+    //     const money dP = -0.1;
+    //     money step_x = step_for_price_2(
+    //         st0,
+    //         P + dP, 0,
+    //         1e100,
+    //         curve, fee, 0, 1e-8*2e6
+    //         );
+    //     AMMState st = st0;
+    //     st.xs[1] += step_x;
+    //     st.xs[0]  = curve.computeY(st0, st.xs[1], 1, 0);
+    //     EXPECT_NEAR( P+dP, curve.computePrice(st), 1e-6) << "After trade (with fee) dP<0";
+    // }
+}
+
 namespace {
     Stableswap      stableswap_1(5);
     Stableswap      stableswap_2(50);
