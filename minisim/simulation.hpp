@@ -18,7 +18,7 @@ using money = long double;
 class Curve;
 class Trade;
 class AMMState;
-
+class Fee;
 
 // Price scale in AMM.
 struct Prices {
@@ -119,6 +119,17 @@ struct Trade {
     int   i_sell; // Index of sold token
 };
 
+money step_for_price_2(
+    const AMMState& state0,
+    money p_min,
+    money p_max,
+    money vol,
+    money ext_vol,
+    const Curve& curve,
+    const Fee&   fee_model,
+    money gas_fee,
+    money dx
+    );
 
 
 // ----------------------------------------------------------------
