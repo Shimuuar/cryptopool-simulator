@@ -5,6 +5,17 @@
 
 class CurveTest : public ::testing::TestWithParam<Curve*> {};
 
+static money finiteDiffPrice(const Curve& curve, const AMMState& st, const money eps) {
+    const money h = eps * st.xs[0];
+    AMMState st_lo = st;
+    st_lo.xs[0] -= h;
+    st_lo.xs[1]  = curve.computeY(st, st_lo.xs[0], 0, 1);
+    AMMState st_hi = st;
+    st_hi.xs[0] += h;
+    st_hi.xs[1]  = curve.computeY(st, st_hi.xs[0], 0, 1);
+    return (2*h) / (st_lo.xs[1] - st_hi.xs[1]);
+}
+
 TEST_P(CurveTest, OnCurveTrade) {
     const Curve& curve = *GetParam();
     // Initial state
@@ -52,6 +63,39 @@ TEST_P(CurveTest, Xcp) {
     const money D   = curve.computeD(st_xcp);
     const money Xcp = curve.computeXcp(st_xcp);
     EXPECT_NEAR(D, 2*Xcp, 1e-12L * D);
+}
+
+TEST_P(CurveTest, Price) {
+    // Check that price is estimated correctly using finite differences
+    const Curve& curve = *GetParam();
+    // In-equilibrium
+    {
+        const AMMState st(1e6, Prices({1,100}));
+        const money p = curve.computeP(st);
+        EXPECT_NEAR(p, 1, 1e-12) << "In equilibrium";
+    }
+    // Out-of equilibrium
+    {
+        AMMState st;
+        st.xs    = {1e6, 1.5e6};
+        st.price = {1,1};
+        const money p = curve.computeP(st);
+        EXPECT_NEAR(p, finiteDiffPrice(curve, st, 1e-6), 1e-9) << "Out of equilibrium 1";
+    }
+    {
+        AMMState st;
+        st.xs    = {3e6, 1.5e6};
+        st.price = {1,1};
+        const money p = curve.computeP(st);
+        EXPECT_NEAR(p, finiteDiffPrice(curve, st, 1e-6), 1e-9) << "Out of equilibrium 2";
+    }
+    {
+        AMMState st;
+        st.xs    = {1e6, 1e6};
+        st.price = {1,2};
+        const money p = curve.computePrice(st);
+        EXPECT_NEAR(p, finiteDiffPrice(curve, st, 1e-6), 1e-9) << "With price scale";
+    }
 }
 
 TEST_P(CurveTest, DisLinear) {
