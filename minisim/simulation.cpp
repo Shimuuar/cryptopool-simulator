@@ -484,6 +484,10 @@ std::ostream& operator<<(std::ostream& o, const Tokens& tok) {
     o << '[' << tok[0] << ", " << tok[1] << ']';
     return o;
 }
+std::ostream& operator<<(std::ostream& o, const TokensXP& tok) {
+    o << '[' << tok[0] << ", " << tok[1] << ']';
+    return o;
+}
 std::ostream& operator<<(std::ostream& o, const Prices& p) {
     o << '[' << p[0] << ", " << p[1] << ']';
     return o;

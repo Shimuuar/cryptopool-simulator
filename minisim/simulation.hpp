@@ -254,6 +254,7 @@ struct RegisterCurveFactory {
 // Helper
 
 std::ostream& operator<<(std::ostream&, const Tokens&);
+std::ostream& operator<<(std::ostream&, const TokensXP&);
 std::ostream& operator<<(std::ostream&, const Prices&);
 std::ostream& operator<<(std::ostream&, const AMMState&);
 std::ostream& operator<<(std::ostream&, const Trade&);
