@@ -216,6 +216,23 @@ public:
     money computeTradeFee(const AMMState& state, const Trade& trade) const;
     // Compute local boost rate for donations to a pool
     virtual money localBoostRate(const AMMState& state) const = 0;
+
+    // ----------------------------------------
+    // Factory
+
+    // Create new curve from JSON value. Factory is dispatched on
+    // json["type"]
+    static Fee* make(const JSON&);
+    // Create new curve from JSON value. Factory is dispatched on
+    // json["type"]
+    static Fee* make(const JSON::ref&);
+    // Create new curve from JSON value. Factory is dispatched on name
+    static Fee* make(const std::string&, const JSON&);
+    // Create new curve from JSON value. Factory is dispatched on name
+    static Fee* make(const std::string&, const JSON::ref&);
+
+    // Register function which can create new curve object.
+    static void registerFactory(const std::string&, Fee* (*)(const JSON::ref&));
 };
 
 
@@ -267,6 +284,16 @@ struct RegisterCurveFactory {
         Curve::registerFactory(
             name,
             [](const JSON::ref& json) -> Curve* {
+                return new T(json);
+            });
+    }
+};
+template<typename T>
+struct RegisterFeeFactory {
+    RegisterFeeFactory(const std::string& name) {
+        Fee::registerFactory(
+            name,
+            [](const JSON::ref& json) -> Fee* {
                 return new T(json);
             });
     }

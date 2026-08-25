@@ -417,6 +417,7 @@ StdFee::StdFee(const JSON& json) :
     boost_mul(json["boost_mul"])
 {}
 StdFee::~StdFee() {}
+static RegisterFeeFactory<StdFee> reg_std_fee("std_fee");
 
 static money reduction_coefficient_2(const TokensXP &x, money gamma) {
     money K = 1.L;
@@ -472,7 +473,7 @@ void PriceOracle::State::record(u64 t, const Prices& trade_price) {
 using make_curve     = Curve* (*)(const JSON::ref&);
 using make_curve_map = std::map<std::string, make_curve>;
 
-static make_curve_map& get_factory_map() {
+static make_curve_map& get_curve_factory_map() {
     static make_curve_map dat;
     return dat;
 }
@@ -490,7 +491,7 @@ Curve* Curve::make(const std::string& name, const JSON& json) {
 }
 
 Curve* Curve::make(const std::string& name, const JSON::ref& json) {
-    make_curve_map& data = get_factory_map();
+    make_curve_map& data = get_curve_factory_map();
     auto it = data.find(name);
     if( it != data.end() ) {
         return it->second(json);
@@ -499,7 +500,43 @@ Curve* Curve::make(const std::string& name, const JSON::ref& json) {
 }
 
 void Curve::registerFactory(const std::string& name, make_curve fun) {
-    make_curve_map& data = get_factory_map();
+    make_curve_map& data = get_curve_factory_map();
+    data[name] = fun;
+}
+
+
+
+using make_fee     = Fee* (*)(const JSON::ref&);
+using make_fee_map = std::map<std::string, make_fee>;
+
+static make_fee_map& get_fee_factory_map() {
+    static make_fee_map dat;
+    return dat;
+}
+
+Fee* Fee::make(const JSON& json) {
+    return Fee::make(json["type"], json.as_ref());
+}
+
+Fee* Fee::make(const JSON::ref& json) {
+    return Fee::make(json["type"], json);
+}
+
+Fee* Fee::make(const std::string& name, const JSON& json) {
+    return Fee::make(name, json.as_ref());
+}
+
+Fee* Fee::make(const std::string& name, const JSON::ref& json) {
+    make_fee_map& data = get_fee_factory_map();
+    auto it = data.find(name);
+    if( it != data.end() ) {
+        return it->second(json);
+    }
+    return nullptr;
+}
+
+void Fee::registerFactory(const std::string& name, make_fee fun) {
+    make_fee_map& data = get_fee_factory_map();
     data[name] = fun;
 }
 

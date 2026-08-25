@@ -56,14 +56,17 @@ struct simulation_data {
 
 struct Trader {
     Trader(const JSON &jconf, const Prices &p0) :
-        fee_model(jconf),
         ext_fee(jconf["ext_fee"]),
         gas_fee(jconf["gas_fee"]),
-        curve(Curve::make(jconf["curve"])),
+        curve(    Curve::make(jconf["curve"])),
+        fee_model(Fee::  make(jconf["fee"])),
         state0(jconf["D"], p0)
     {
         if( !curve ) {
             throw std::runtime_error("Failed to initialize curve");
+        }
+        if( !fee_model ) {
+            throw std::runtime_error("Failed to initialize fee model");
         }
         price_oracle.ma_half_time = jconf["ma_half_time"];
         //--
@@ -89,7 +92,6 @@ struct Trader {
 
     void simulate(simulation_data *simdata, extra_data *extdata);
 
-    StdFee      fee_model;
     PriceOracle price_oracle;
     money dx;
     money xcp_profit;
@@ -101,6 +103,7 @@ struct Trader {
     money lp_profit_fraction;
     bool not_adjusted;
     std::unique_ptr<Curve> curve;
+    std::unique_ptr<Fee>   fee_model;
     AMMState state0;
 };
 
@@ -162,7 +165,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             if ((max_price != 0) & (max_price > state.price)) {
                 // External Y price is higher. AMM will buy X from and
                 // sell Y to arbitrageurs
-                auto step = step_for_price_2(state.amm, 0, max_price, ext_vol, *curve, fee_model, gas_fee, dx);
+                auto step = step_for_price_2(state.amm, 0, max_price, ext_vol, *curve, *fee_model, gas_fee, dx);
                 if (step > 0) {
                     trade_happened = true;
                     trade = Trade(Trade::BUY, step, a, b, state.amm, *curve);
@@ -170,7 +173,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             } else if((min_price != 0) && (min_price < state.price)) {
                 // External Y price is lower. AMM will buy Y from and
                 // sell X to arbitrageurs
-                auto step = step_for_price_2(state.amm, min_price, 0, ext_vol, *curve, fee_model, gas_fee, dx);
+                auto step = step_for_price_2(state.amm, min_price, 0, ext_vol, *curve, *fee_model, gas_fee, dx);
                 if (step > 0) {
                     trade_happened = true;
                     trade = Trade(Trade::BUY, step, b, a, state.amm, *curve);
@@ -178,7 +181,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             }
             if( trade_happened ) {
                 // Apply fee and make trade
-                Trade        trade_fee   = trade.applyFee(fee_model.computeTradeFee(state.amm, trade));
+                Trade        trade_fee   = trade.applyFee(fee_model->computeTradeFee(state.amm, trade));
                 FullAMMState state_trade = FullAMMState(state, trade_fee, *curve);
                 xcp_profit += (state_trade.xcp - state.xcp) / initial_state.xcp;
                 // Update trade volumes
@@ -209,7 +212,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
 
 
         // Boost with special donations to the pool
-        money local_boost_rate = fee_model.localBoostRate(state.amm);
+        money local_boost_rate = fee_model->localBoostRate(state.amm);
         if (local_boost_rate > 0) {
             money _boost = (1.L + last_time * local_boost_rate);
             state.amm.xs[0] = state.amm.xs[0] * _boost;
@@ -247,7 +250,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                    (xcp_profit_real - 1.) / (xcp_profit - 1.L),
                    xcp_profit_real,
                    APY * 100.L,
-                   fee_model.computeFee(state.amm) * 100.L);
+                   fee_model->computeFee(state.amm) * 100.L);
         }
 
         if (log) {

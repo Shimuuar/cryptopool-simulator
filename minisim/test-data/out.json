@@ -15,22 +15,25 @@
             "adjustment_step": 0.005,
             "allowed_extra_profit": 1e-10,
             "boost_min": 0,
-            "boost_mul": 1,
-            "boost_rate": 0.016,
             "curve": {
                 "A": 5,
                 "gamma": 0,
                 "type": "stableswap"
             },
             "ext_fee": 0.0002,
-            "fee_gamma": 0.005125,
+            "fee": {
+                "boost_mul": 1,
+                "boost_rate": 0.016,
+                "fee_gamma": 0.005125,
+                "mid_fee": 0.00535,
+                "out_fee": 0.0131,
+                "type": "std_fee"
+            },
             "gas_fee": 0,
             "log": 1,
             "lp_profit_fraction": 0.4049,
             "ma_half_time": 600,
-            "mid_fee": 0.00535,
-            "n": 2,
-            "out_fee": 0.0131
+            "n": 2
         }
     ],
     "datafile": [
