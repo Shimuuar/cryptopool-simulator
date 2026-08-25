@@ -206,10 +206,10 @@ public:
 // Standard fee as used in smart contracts(?)
 struct StdFee: public Fee {
     StdFee(money _mid_fee,
-        money _out_fee,
-        money _fee_gamma,
-        money _boost_rate,
-        money _boost_mul
+           money _out_fee,
+           money _fee_gamma,
+           money _boost_rate,
+           money _boost_mul
         );
     StdFee(const JSON& json);
     virtual ~StdFee();
@@ -222,6 +222,21 @@ struct StdFee: public Fee {
     money fee_gamma;
     money boost_rate;
     money boost_mul;
+};
+
+// Simple flat fee which useful for testing ideas that don't depend on fee.
+struct FlatFee: public Fee {
+    FlatFee(money _fee,
+            money _boost_rate
+        );
+    FlatFee(const JSON& json);
+    virtual ~FlatFee();
+
+    virtual money computeFee(const AMMState& state)     const override;
+    virtual money localBoostRate(const AMMState& state) const override;
+
+    money fee;
+    money boost_rate;
 };
 
 

@@ -447,6 +447,27 @@ money StdFee::localBoostRate(const AMMState& state) const {
 }
 
 
+FlatFee::FlatFee(money _fee,
+                 money _boost_rate
+    ) :
+    fee(_fee),
+    boost_rate(_boost_rate / (86400L * 365L))
+{}
+FlatFee::FlatFee(const JSON& json) :
+    fee(json["fee"]),
+    boost_rate((double)json["boost_rate"] / (86400L * 365L))
+{}
+FlatFee::~FlatFee() {}
+static Factory<Fee>::Register<FlatFee> reg_flat_fee("flat_fee");
+
+money FlatFee::computeFee(const AMMState& state) const {
+    return fee;
+}
+money FlatFee::localBoostRate(const AMMState& state) const {
+    return boost_rate;
+}
+
+
 
 PriceOracle::State PriceOracle::init(u64 t, const Prices& prices) const {
     PriceOracle::State o;
