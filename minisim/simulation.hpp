@@ -159,7 +159,11 @@ public:
 
 
 
-
+// Stableswap curve. It's described in paper "StableSwap - efficient
+// mechanism for Stablecoin liquidity". Note that this implementation
+// differs from one in paper slight since it rescales parameter A by 2.
+//
+// > 2A(x + y) + D = 2AD + D³/(4xy)
 class Stableswap : public Curve{
 public:
     explicit Stableswap(money _A);
