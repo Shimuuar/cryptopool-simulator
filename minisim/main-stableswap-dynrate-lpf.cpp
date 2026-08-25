@@ -81,20 +81,21 @@ struct Trader {
 
         log = jconf["log"];
         this->dx = D * 1e-8L;
-        this->xcp_profit = 1.L;
         this->not_adjusted = false;
     }
 
     void tweak_price_2(const FullAMMState& initial_state,
                        const FullAMMState& oldstate,
-                       FullAMMState& state, u64 t, money spot_prev,
+                       FullAMMState& state,
+                       money xcp_profit,
+                       u64 t,
+                       money spot_prev,
                        PriceOracle::State &oracle);
 
     void simulate(simulation_data *simdata, extra_data *extdata);
 
     PriceOracle price_oracle;
     money dx;
-    money xcp_profit;
     money adjustment_step;
     money allowed_extra_profit;
     int log;
@@ -110,6 +111,7 @@ struct Trader {
 void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     const size_t total_elements = simdata->test_data->size();
     const price_point* mapped_data = simdata->test_data->array();
+    money xcp_profit = 1.0L;
     money slippage = 0;
     money imbalance = 0;
     money antislippage = 0;
@@ -148,7 +150,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
         auto apply_tweak_trade = [&](const FullAMMState& oldst, FullAMMState& st) {
             money ps_before = st.amm.price[1];
             money cur_get_p = curve->computeP(st.amm);
-            tweak_price_2(initial_state, oldst, st, d.t, last_prices, oracle);
+            tweak_price_2(initial_state, oldst, st, xcp_profit, d.t, last_prices, oracle);
             last_prices = cur_get_p * ps_before;
             last_time_tweak_price = d.t;
         };
@@ -290,6 +292,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
 void Trader::tweak_price_2(const FullAMMState& initial_state,
                            const FullAMMState& oldstate,
                            FullAMMState& state,
+                           money xcp_profit,
                            u64 t,
                            money spot_prev,
                            PriceOracle::State &oracle
