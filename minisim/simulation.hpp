@@ -3,6 +3,7 @@
 // header contain data structures and primitives for writing
 // simulators but no simulator itself.
 #include "sim-json.hpp"
+#include "sim-factory.hpp"
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -137,7 +138,7 @@ money step_for_price_2(
 
 
 // Definition of AMM curve
-class Curve {
+class Curve : public Factory<Curve> {
 public:
     virtual ~Curve() = default;
     // Compute value of x[j] for giben x[i].
@@ -154,23 +155,6 @@ public:
     virtual money computeXcp(const AMMState& st) const = 0;
     // Compute value of invariant D
     virtual money computeD(const AMMState& st) const = 0;
-
-    // ----------------------------------------
-    // Factory
-
-    // Create new curve from JSON value. Factory is dispatched on
-    // json["type"]
-    static Curve* make(const JSON&);
-    // Create new curve from JSON value. Factory is dispatched on
-    // json["type"]
-    static Curve* make(const JSON::ref&);
-    // Create new curve from JSON value. Factory is dispatched on name
-    static Curve* make(const std::string&, const JSON&);
-    // Create new curve from JSON value. Factory is dispatched on name
-    static Curve* make(const std::string&, const JSON::ref&);
-
-    // Register function which can create new curve object.
-    static void registerFactory(const std::string&, Curve* (*)(const JSON::ref&));
 };
 
 
@@ -205,7 +189,7 @@ public:
 
 // Interface for computing fee _and_ boost rate. They seems to be
 // rather interwined
-class Fee {
+class Fee: public Factory<Fee> {
 public:
     Fee() = default;
     virtual ~Fee();
@@ -216,23 +200,6 @@ public:
     money computeTradeFee(const AMMState& state, const Trade& trade) const;
     // Compute local boost rate for donations to a pool
     virtual money localBoostRate(const AMMState& state) const = 0;
-
-    // ----------------------------------------
-    // Factory
-
-    // Create new curve from JSON value. Factory is dispatched on
-    // json["type"]
-    static Fee* make(const JSON&);
-    // Create new curve from JSON value. Factory is dispatched on
-    // json["type"]
-    static Fee* make(const JSON::ref&);
-    // Create new curve from JSON value. Factory is dispatched on name
-    static Fee* make(const std::string&, const JSON&);
-    // Create new curve from JSON value. Factory is dispatched on name
-    static Fee* make(const std::string&, const JSON::ref&);
-
-    // Register function which can create new curve object.
-    static void registerFactory(const std::string&, Fee* (*)(const JSON::ref&));
 };
 
 
@@ -274,30 +241,6 @@ struct PriceOracle {
     money ma_half_time;
 };
 
-
-// ----------------------------------------------------------------
-// Factories
-
-template<typename T>
-struct RegisterCurveFactory {
-    RegisterCurveFactory(const std::string& name) {
-        Curve::registerFactory(
-            name,
-            [](const JSON::ref& json) -> Curve* {
-                return new T(json);
-            });
-    }
-};
-template<typename T>
-struct RegisterFeeFactory {
-    RegisterFeeFactory(const std::string& name) {
-        Fee::registerFactory(
-            name,
-            [](const JSON::ref& json) -> Fee* {
-                return new T(json);
-            });
-    }
-};
 
 
 // ----------------------------------------------------------------

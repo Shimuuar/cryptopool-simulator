@@ -111,7 +111,7 @@ Stableswap::Stableswap(money _A) :
 Stableswap::Stableswap(const JSON::ref& json) :
     A(json["A"])
 {}
-static RegisterCurveFactory<Stableswap> reg_stableswap("stableswap");
+static Factory<Curve>::Register<Stableswap> reg_stableswap("stableswap");
 
 money Stableswap::computeD(const AMMState& st) const {
     TokensXP xp(st);
@@ -151,7 +151,7 @@ money Stableswap::computeXcp(const AMMState& st) const {
 
 ConstantProduct::ConstantProduct() = default;
 ConstantProduct::ConstantProduct(const JSON::ref& json) {}
-static RegisterCurveFactory<ConstantProduct> reg_constant_product("constant_product");
+static Factory<Curve>::Register<ConstantProduct> reg_constant_product("constant_product");
 
 money ConstantProduct::computeY(const AMMState& st, money x, int i, int j) const {
     const money inv = st.xs[0] * st.xs[1];
@@ -417,7 +417,7 @@ StdFee::StdFee(const JSON& json) :
     boost_mul(json["boost_mul"])
 {}
 StdFee::~StdFee() {}
-static RegisterFeeFactory<StdFee> reg_std_fee("std_fee");
+static Factory<Fee>::Register<StdFee> reg_std_fee("std_fee");
 
 static money reduction_coefficient_2(const TokensXP &x, money gamma) {
     money K = 1.L;
@@ -464,80 +464,6 @@ void PriceOracle::State::record(u64 t, const Prices& trade_price) {
         price.p[1] = trade_price[k] * (1 - alpha) + price.p[1] * alpha;
         time = t;
     }
-}
-
-// ----------------------------------------------------------------
-// Factories
-// ----------------------------------------------------------------
-
-using make_curve     = Curve* (*)(const JSON::ref&);
-using make_curve_map = std::map<std::string, make_curve>;
-
-static make_curve_map& get_curve_factory_map() {
-    static make_curve_map dat;
-    return dat;
-}
-
-Curve* Curve::make(const JSON& json) {
-    return Curve::make(json["type"], json.as_ref());
-}
-
-Curve* Curve::make(const JSON::ref& json) {
-    return Curve::make(json["type"], json);
-}
-
-Curve* Curve::make(const std::string& name, const JSON& json) {
-    return Curve::make(name, json.as_ref());
-}
-
-Curve* Curve::make(const std::string& name, const JSON::ref& json) {
-    make_curve_map& data = get_curve_factory_map();
-    auto it = data.find(name);
-    if( it != data.end() ) {
-        return it->second(json);
-    }
-    return nullptr;
-}
-
-void Curve::registerFactory(const std::string& name, make_curve fun) {
-    make_curve_map& data = get_curve_factory_map();
-    data[name] = fun;
-}
-
-
-
-using make_fee     = Fee* (*)(const JSON::ref&);
-using make_fee_map = std::map<std::string, make_fee>;
-
-static make_fee_map& get_fee_factory_map() {
-    static make_fee_map dat;
-    return dat;
-}
-
-Fee* Fee::make(const JSON& json) {
-    return Fee::make(json["type"], json.as_ref());
-}
-
-Fee* Fee::make(const JSON::ref& json) {
-    return Fee::make(json["type"], json);
-}
-
-Fee* Fee::make(const std::string& name, const JSON& json) {
-    return Fee::make(name, json.as_ref());
-}
-
-Fee* Fee::make(const std::string& name, const JSON::ref& json) {
-    make_fee_map& data = get_fee_factory_map();
-    auto it = data.find(name);
-    if( it != data.end() ) {
-        return it->second(json);
-    }
-    return nullptr;
-}
-
-void Fee::registerFactory(const std::string& name, make_fee fun) {
-    make_fee_map& data = get_fee_factory_map();
-    data[name] = fun;
 }
 
 
