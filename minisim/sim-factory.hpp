@@ -3,6 +3,7 @@
 #include "sim-json.hpp"
 #include <map>
 #include <string>
+#include <iostream>
 
 // Generic factory whcih alloscreation of object of type T from JSON
 // files
@@ -29,8 +30,9 @@ public:
     }
     // Create new curve from JSON value. Factory is dispatched on name
     static T* make(const std::string& name, const JSON::ref& json) {
-        auto it = Factory<T>::m_map.find(name);
-        if( it != Factory<T>::m_map.end() ) {
+        mapping& data = Factory<T>::getMapping();
+        auto it = data.find(name);
+        if( it != data.end() ) {
             return it->second(json);
         }
         return nullptr;
@@ -38,7 +40,7 @@ public:
 
     // Register constructor by name
     static void registerInFactory(const std::string& name, constructor fun) {
-        Factory<T>::m_map[name] = fun;
+        Factory<T>::getMapping()[name] = fun;
     }
 
     // Helper struct for registration in a factory
@@ -53,8 +55,9 @@ public:
         }
     };
 private:
-    static mapping m_map;
+    static mapping& getMapping() {
+        static mapping data;
+        return data;
+    }
 };
 
-template<typename T>
-typename Factory<T>::mapping Factory<T>::m_map;
