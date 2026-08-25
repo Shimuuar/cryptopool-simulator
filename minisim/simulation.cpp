@@ -390,11 +390,18 @@ money step_for_price_2(
 // -- Fee model
 // ----------------------------------------------------------------
 
-Fee::Fee(money _mid_fee,
-         money _out_fee,
-         money _fee_gamma,
-         money _boost_rate,
-         money _boost_mul
+money Fee::computeTradeFee(const AMMState& state, const Trade& trade) const {
+    AMMState st(state, trade);
+    return computeFee(st);
+}
+
+Fee::~Fee() {}
+
+StdFee::StdFee(money _mid_fee,
+               money _out_fee,
+               money _fee_gamma,
+               money _boost_rate,
+               money _boost_mul
     ) :
     mid_fee(_mid_fee),
     out_fee(_out_fee),
@@ -402,13 +409,14 @@ Fee::Fee(money _mid_fee,
     boost_rate(_boost_rate / (86400L * 365L)),
     boost_mul(_boost_mul)
 {}
-Fee::Fee(const JSON& json) :
+StdFee::StdFee(const JSON& json) :
     mid_fee(json["mid_fee"]),
     out_fee(json["out_fee"]),
     fee_gamma(json["fee_gamma"]),
     boost_rate((double)json["boost_rate"] / (86400L * 365L)),
     boost_mul(json["boost_mul"])
 {}
+StdFee::~StdFee() {}
 
 static money reduction_coefficient_2(const TokensXP &x, money gamma) {
     money K = 1.L;
@@ -423,18 +431,13 @@ static money reduction_coefficient_2(const TokensXP &x, money gamma) {
     return K;
 }
 
-money Fee::computeFee(const AMMState& state) const {
+money StdFee::computeFee(const AMMState& state) const {
     TokensXP xp(state);
     auto f = reduction_coefficient_2(xp, fee_gamma);
     return (mid_fee * f + out_fee * (1.L - f));
 }
 
-money Fee::computeFee(const AMMState& state, const Trade& trade) const {
-    AMMState st(state, trade);
-    return computeFee(st);
-}
-
-money Fee::localBoostRate(const AMMState& state) const {
+money StdFee::localBoostRate(const AMMState& state) const {
     auto local_boost_rate = boost_rate;
     if (mid_fee < out_fee) {
         local_boost_rate *= 1 + (computeFee(state) - mid_fee) / (out_fee - mid_fee) * (boost_mul - 1);

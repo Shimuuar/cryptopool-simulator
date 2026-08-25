@@ -89,7 +89,7 @@ struct Trader {
 
     void simulate(simulation_data *simdata, extra_data *extdata);
 
-    Fee         fee_model;
+    StdFee      fee_model;
     PriceOracle price_oracle;
     money dx;
     money xcp_profit;
@@ -178,7 +178,7 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
             }
             if( trade_happened ) {
                 // Apply fee and make trade
-                Trade        trade_fee   = trade.applyFee(fee_model.computeFee(state.amm, trade));
+                Trade        trade_fee   = trade.applyFee(fee_model.computeTradeFee(state.amm, trade));
                 FullAMMState state_trade = FullAMMState(state, trade_fee, *curve);
                 xcp_profit += (state_trade.xcp - state.xcp) / initial_state.xcp;
                 // Update trade volumes

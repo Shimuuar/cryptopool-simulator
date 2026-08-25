@@ -205,22 +205,33 @@ public:
 
 // Interface for computing fee _and_ boost rate. They seems to be
 // rather interwined
-struct Fee {
-    Fee(money _mid_fee,
+class Fee {
+public:
+    Fee() = default;
+    virtual ~Fee();
+
+    // Compute fee for a given state of AMM
+    virtual money computeFee(const AMMState& state) const = 0;
+    // Compute fee for tentative trade
+    money computeTradeFee(const AMMState& state, const Trade& trade) const;
+    // Compute local boost rate for donations to a pool
+    virtual money localBoostRate(const AMMState& state) const = 0;
+};
+
+
+// Standard fee as used in smart contracts(?)
+struct StdFee: public Fee {
+    StdFee(money _mid_fee,
         money _out_fee,
         money _fee_gamma,
         money _boost_rate,
         money _boost_mul
         );
-    Fee(const JSON& json);
+    StdFee(const JSON& json);
+    virtual ~StdFee();
 
-    // Compute fee for a given state of AMM
-    money computeFee(const AMMState& state) const;
-
-    // Compute fee for tentative trade
-    money computeFee(const AMMState& state, const Trade& trade) const;
-
-    money localBoostRate(const AMMState& state) const;
+    virtual money computeFee(const AMMState& state)     const override;
+    virtual money localBoostRate(const AMMState& state) const override;
 
     money mid_fee;
     money out_fee;
