@@ -12,7 +12,8 @@ LIB_SRC = \
 	sim-data.cpp			\
 	sim-json.cpp
 TEST_SRC = \
-	test/test.cpp
+	test/test.cpp			\
+	test/test_stableswap.cpp
 
 LIB_OBJ  = $(patsubst %,      build/%.o,      $(LIB_SRC))
 TEST_OBJ = $(patsubst test/%, build/test/%.o, $(TEST_SRC))

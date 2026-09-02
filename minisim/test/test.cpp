@@ -98,8 +98,8 @@ TEST_P(CurveTest, Price) {
     }
 }
 
+// D is linear in token amount
 TEST_P(CurveTest, DIsLinear) {
-    // D is linear in token amount
     const Curve& curve = *GetParam();
     //
     const AMMState st1(1e6, Prices({1, 100}));
@@ -112,27 +112,36 @@ TEST_P(CurveTest, DIsLinear) {
     EXPECT_NEAR(2*D1, D2, 1e-12L * D1);
 }
 
-
-TEST(StableSwap, SolveD) {
-    const Stableswap curve(5);
-    AMMState st(1, {1,1});
-    // 1
-    st.xs = {1,1};
-    EXPECT_NEAR(curve.computeD(st), 2, 1e-12) << st;
-    // 2
-    st.xs = {1,2};
-    EXPECT_NEAR(curve.computeD(st), 2.96961331212497, 1e-12) << st;
-    // 3
-    st.xs = {1,3};
-    EXPECT_NEAR(curve.computeD(st), 3.89662088422203, 1e-12) << st;
-    // 4
-    st.xs = {1,4};
-    EXPECT_NEAR(curve.computeD(st), 4.79158681183612, 1e-12) << st;
-    // 5
-    st.xs = {1,5};
-    EXPECT_NEAR(curve.computeD(st), 5.65955995546684, 1e-12) << st;
+// D(x,y) = D(y,x)
+TEST_P(CurveTest, DIsSymmetric) {
+    const Curve& curve = *GetParam();
+    // We use price scale 1,1 to make symmetry explicit
+    const AMMState st1(Tokens({3e6, 1e6}), Prices({1, 1}));
+    const AMMState st2(Tokens({1e6, 3e6}), Prices({1, 1}));
+    //
+    const money D1 = curve.computeD(st1);
+    const money D2 = curve.computeD(st2);
+    EXPECT_NEAR(D1, D2, 1e-12L * D1);
+    
 }
 
+namespace {
+    Stableswap      stableswap_1(5);
+    Stableswap      stableswap_2(50);
+    ConstantProduct constant_prod;
+}
+
+INSTANTIATE_TEST_SUITE_P(Minisim, CurveTest,
+                         ::testing::Values(&stableswap_1,
+                                           &stableswap_2,
+                                           &constant_prod
+                             ));
+
+
+
+// ----------------------------------------------------------------
+// Step calculations
+// ----------------------------------------------------------------
 
 // These tests determine sematics of
 TEST(StepCalculation, Simple) {
@@ -216,15 +225,3 @@ TEST(StepCalculation, Simple) {
     //     EXPECT_NEAR( P+dP, curve.computePrice(st), 1e-6) << "After trade (with fee) dP<0";
     // }
 }
-
-namespace {
-    Stableswap      stableswap_1(5);
-    Stableswap      stableswap_2(50);
-    ConstantProduct constant_prod;
-}
-
-INSTANTIATE_TEST_SUITE_P(Minisim, CurveTest,
-                         ::testing::Values(&stableswap_1,
-                                           &stableswap_2,
-                                           &constant_prod
-                             ));
