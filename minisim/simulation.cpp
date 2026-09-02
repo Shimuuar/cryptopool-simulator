@@ -165,8 +165,10 @@ money ConstantProduct::computeY(const AMMState& st, money x, int i, int j) const
 }
 
 void ConstantProduct::computeXforP(const AMMState& st, money P, TokensXP& x) const {
-    x[0] = 10;
-    x[1] = 10;
+    money D     = sqrtl(st.xs[0] * st.xs[1]); // Not quite invariant
+    money sqrtP = sqrtl(P * st.price[1]);
+    x[0] = D * sqrtP;
+    x[1] = D / sqrtP;
 }
 
 money ConstantProduct::computeP(const AMMState& st) const {
