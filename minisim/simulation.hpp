@@ -64,6 +64,11 @@ struct AMMState {
         xs.x[0] = D / 2 / price.p[0];
         xs.x[1] = D / 2 / price.p[1];
     }
+    // Create AMM state from tokens and price scale
+    AMMState(const Tokens& x, const Prices& p) :
+        price(p),
+        xs(x)
+    {}
     // Create AMM from old state and trade description
     AMMState(const AMMState& old,
              const Trade&    trade);
