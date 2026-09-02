@@ -1,5 +1,6 @@
 main
 test-data/test_*
+test/test
 *.o
 *.d
 detailed-output.json
