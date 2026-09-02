@@ -98,6 +98,38 @@ TEST_P(CurveTest, Price) {
     }
 }
 
+// Check that computation of state at given price is correct
+TEST_P(CurveTest, XForPrice) {
+    const Curve& curve = *GetParam();
+    //
+    auto test_price = [&](const AMMState& st0, money P) {
+        TokensXP x;
+        curve.computeXforP(st0, P, x);
+        AMMState st = st0;
+        st.xs[0] = x[0];
+        st.xs[1] = x[1];
+        money D0 = curve.computeD(st0);
+        money D  = curve.computeD(st);
+        EXPECT_NEAR(D0, D, 1e-12)
+            << "D is conserved" << std::endl
+            << "st0 = " << st0 << std::endl
+            << "st  = " << st  << std::endl
+            << "P = " << P;
+        EXPECT_NEAR(curve.computeP(st), P, 1e-12)
+            << "P is correct" << std::endl
+            << "st0 = " << st0 << std::endl
+            << "st  = " << st  << std::endl
+            << "P = " << P;
+    };
+    //
+    const AMMState st1(1e6, Prices({1, 1} ));
+    const AMMState st2(1e6, Prices({1, 10}));
+    test_price(st1, 2);
+    test_price(st1, 0.5);
+    test_price(st2, 2);
+    test_price(st2, 0.5);
+}
+
 // D is linear in token amount
 TEST_P(CurveTest, DIsLinear) {
     const Curve& curve = *GetParam();

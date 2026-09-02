@@ -127,6 +127,11 @@ money Stableswap::computeY(const AMMState& st, money x, int i, int j) const {
     return ret;
 }
 
+void Stableswap::computeXforP(const AMMState& st, money P, TokensXP& x) const {
+    x[0] = 10;
+    x[1] = 10;
+}
+
 money Stableswap::computeP(const AMMState& st) const {
     TokensXP xp(st);
     auto p = get_p_2(xp, computeD(st), this->A);
@@ -145,6 +150,7 @@ money Stableswap::computeXcp(const AMMState& st) const {
 }
 
 
+
 // ----------------------------------------------------------------
 // -- Curve: constant product
 // ----------------------------------------------------------------
@@ -156,6 +162,11 @@ static Factory<Curve>::Register<ConstantProduct> reg_constant_product("constant_
 money ConstantProduct::computeY(const AMMState& st, money x, int i, int j) const {
     const money inv = st.xs[0] * st.xs[1];
     return inv / x;
+}
+
+void ConstantProduct::computeXforP(const AMMState& st, money P, TokensXP& x) const {
+    x[0] = 10;
+    x[1] = 10;
 }
 
 money ConstantProduct::computeP(const AMMState& st) const {
