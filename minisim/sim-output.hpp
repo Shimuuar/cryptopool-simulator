@@ -21,4 +21,4 @@ public:
 
 
 // Write output into JSON file
-std::unique_ptr<SimOuput> makeOutputJSON(std::string& path);
+std::unique_ptr<SimOuput> makeOutputJSON(const std::string& path);

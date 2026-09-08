@@ -62,6 +62,6 @@ void SimOuputJSON::recordPoint(
             local_boost_rate);
 }
 
-std::unique_ptr<SimOuput> makeOutputJSON(std::string& path) {
+std::unique_ptr<SimOuput> makeOutputJSON(const std::string& path) {
     return std::make_unique<SimOuputJSON>(path);
 }
