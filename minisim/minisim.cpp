@@ -62,15 +62,6 @@ struct extra_data {
     money imbalance_integral = 0;
 };
 
-struct simulation_data {
-    int num = 0;
-    JSON jconf;
-    const TradeDataArray *test_data = nullptr;
-    std::unique_ptr<SimOuput> output;
-    extra_data result;
-};
-
-
 struct Trader {
     Trader(const JSON &jconf, const Prices &p0) :
         ext_fee(jconf["ext_fee"]),
@@ -358,8 +349,12 @@ public:
     SimulationTask(JSON *_result) :
         result(_result)
     {}
-    simulation_data simdata;
-    JSON *result;
+    int                       num = 0;
+    JSON                      jconf;
+    const TradeDataArray     *test_data = nullptr;
+    std::unique_ptr<SimOuput> output;
+    extra_data                extra_result;
+    JSON                     *result;
 
     virtual void work();
     virtual void fini();
@@ -370,31 +365,29 @@ private:
 
 void SimulationTask::work() {
     int tid = 0;
-    printf("[%d]: pick up configuration %d\n", tid, simdata.num);
-    Trader trader(simdata.jconf, simdata.test_data->initialPriceScale());
+    printf("[%d]: pick up configuration %d\n", tid, num);
+    Trader trader(jconf, test_data->initialPriceScale());
     auto start_simulation = get_thread_time();
-    printf("Configuration %d: begin simulation\n", simdata.num);
-    extra_data extdata;
-    trader.simulate(simdata.test_data, &extdata, std::move(simdata.output));
-    simdata.result = extdata;
-    printf("Liquidity density vs that of xyz=k: %Lf\n", extdata.liq_density);
-    printf("APY-boost: %Lf%%\n", extdata.APY_boost * 100.L);
-    printf("APR-geo-mean: %Lf%%\n", extdata.APR_geo_mean * 100.L);
-    printf("APY: %Lf%%\n", extdata.APY * 100.L);
+    printf("Configuration %d: begin simulation\n", num);
+    trader.simulate(test_data, &extra_result, std::move(output));
+    printf("Liquidity density vs that of xyz=k: %Lf\n", extra_result.liq_density);
+    printf("APY-boost: %Lf%%\n", extra_result.APY_boost * 100.L);
+    printf("APR-geo-mean: %Lf%%\n", extra_result.APR_geo_mean * 100.L);
+    printf("APY: %Lf%%\n", extra_result.APY * 100.L);
     auto end = get_thread_time();
     print_clock("Total simulation time", start_simulation, end);
 }
 
 void SimulationTask::fini() {
-    JSON::ref dst = (*result)["configuration"][simdata.num]["Result"];
-    dst["APY"]                = simdata.result.APY;
-    dst["liq_density"]        = simdata.result.liq_density;
-    dst["slippage"]           = simdata.result.slippage;
-    dst["imbalance"]          = simdata.result.imbalance;
-    dst["volume"]             = simdata.result.volume;
-    dst["APY_boost"]          = simdata.result.APY_boost;
-    dst["APR_geo_mean"]       = simdata.result.APR_geo_mean;
-    dst["imbalance_integral"] = simdata.result.imbalance_integral;
+    JSON::ref dst = (*result)["configuration"][num]["Result"];
+    dst["APY"]                = extra_result.APY;
+    dst["liq_density"]        = extra_result.liq_density;
+    dst["slippage"]           = extra_result.slippage;
+    dst["imbalance"]          = extra_result.imbalance;
+    dst["volume"]             = extra_result.volume;
+    dst["APY_boost"]          = extra_result.APY_boost;
+    dst["APR_geo_mean"]       = extra_result.APR_geo_mean;
+    dst["imbalance_integral"] = extra_result.imbalance_integral;
 }
 
 
@@ -473,13 +466,13 @@ int main(int argc, char **argv) {
         JSON result = jin;
         for (int i = 0; i < configurations; i++) {
             std::unique_ptr<SimulationTask> task = std::make_unique<SimulationTask>(&result);
-            task->simdata.num       = i;
-            task->simdata.test_data = &*test_data;
-            task->simdata.jconf     = jin["configuration"][i];
+            task->num       = i;
+            task->test_data = &*test_data;
+            task->jconf     = jin["configuration"][i];
             if( out_json.length() > 0 ) {
                 std::ostringstream ss;
                 ss << out_json << i << ".json";
-                task->simdata.output = makeOutputJSON(ss.str());
+                task->output = makeOutputJSON(ss.str());
             }
             work_queue.enqueue(std::move(task));
         }
