@@ -27,7 +27,10 @@
         }
     ],
     "datafile": [
-        "btc.json"
+        {
+            "source":"binance",
+            "file":  "btc.json"
+        }
     ],
     "debug": 0
 }

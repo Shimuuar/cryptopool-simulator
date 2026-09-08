@@ -26,11 +26,25 @@ TradeDataArray* get_all(const JSON &jin, int last_elems) {
         std::cerr << "Minisim: only 2-coin pools are supported\n";
         exit(1);
     }
-    string name = jin["datafile"][0];
-    printf("using file '%s'\n", name.c_str());
-    vector<OHLC> all_trades = read_binance_data(name);
-    TradeDataArray* arr = preprocessOHLC(all_trades, last_elems);
-    return arr;
+    JSON::ref data = jin["datafile"][0];
+    // Legacy convention
+    if( data.is_string() ) {
+        std::string name = data;
+        printf("using Binance JSON file '%s'\n", name.c_str());
+        vector<OHLC> all_trades = read_binance_data("download/" + name + ".json");
+        return preprocessOHLC(all_trades, last_elems);
+    }
+    // New conventions
+    std::string source = data["source"];
+    if( source == "binance" ) {
+        std::string name = data["file"];
+        printf("using Binance JSON file '%s'\n", name.c_str());
+        vector<OHLC> all_trades = read_binance_data(name);
+        return preprocessOHLC(all_trades, last_elems);
+    } else if( source == "mmap" ) {
+        return read_mmaped_data(data["file"]);
+    }
+    throw std::runtime_error("Unknow data source");
 }
 
 
