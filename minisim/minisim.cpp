@@ -2,6 +2,7 @@
 #include "sim-threading.hpp"
 #include "sim-data.hpp"
 #include "sim-json.hpp"
+#include "sim-output.hpp"
 
 #include <getopt.h>
 #include <iostream>
@@ -106,7 +107,7 @@ struct Trader {
                        money spot_prev,
                        PriceOracle::State &oracle);
 
-    void simulate(simulation_data *simdata, extra_data *extdata);
+    void simulate(simulation_data *simdata, extra_data *extdata, std::unique_ptr<SimOuput> output);
 
     PriceOracle price_oracle;
     money dx;
@@ -122,7 +123,11 @@ struct Trader {
     AMMState state0;
 };
 
-void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
+void Trader::simulate(simulation_data *simdata,
+                      extra_data *extdata,
+                      std::unique_ptr<SimOuput> output
+    )
+{
     const size_t total_elements = simdata->test_data->size();
     const price_point* mapped_data = simdata->test_data->array();
     money xcp_profit = 1.0L;
@@ -140,11 +145,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     money APY_boost = 0.0;
     money boost_integral = 1.0;
 
-    FILE *out_file = nullptr;
-    if (log) {
-        out_file = fopen("detailed-output.json", "w");
-        fprintf(out_file, "[");
-    }
     assert(total_elements > 0 );
     //
     constexpr int a = 0;
@@ -269,20 +269,8 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
                    fee_model->computeFee(state.amm) * 100.L);
         }
 
-        if (log) {
-            money xcp_profit_real = state.xcp / initial_state.xcp;
-            fprintf(out_file, "{\"t\": %lu, \"token0\": %.6Le, \"token1\": %.6Le, \"price_oracle\": %.6Le, \"price_scale\": %.6Le, \"profit\": %.6Le, \"xcp\": %.6Le, \"boost_rate\": %.6Le}",
-                    d.t,
-                    state.amm.xs[0],
-                    state.amm.xs[1],
-                    oracle.price[b] / oracle.price[a],
-                    state.amm.price[1],
-                    xcp_profit_real - 1.0,
-                    xcp_profit,
-                    local_boost_rate);
-            if (i < total_elements - 1) {
-                fprintf(out_file, ",\n");
-            }
+        if (output) {
+            output->recordPoint(d.t, initial_state, state, oracle, xcp_profit, local_boost_rate);
         }
 
         if (slippage > 1e20 and slippage_count > 0) {
@@ -297,10 +285,6 @@ void Trader::simulate(simulation_data *simdata, extra_data *extdata) {
     extdata->volume = volume;
     extdata->APY_boost = APY_boost;
     extdata->APR_geo_mean = 0;
-
-    if (log) {
-        fprintf(out_file, "]");
-    }
 }
 
 void Trader::tweak_price_2(const FullAMMState& initial_state,
@@ -390,7 +374,7 @@ void SimulationTask::work() {
     auto start_simulation = get_thread_time();
     printf("Configuration %d: begin simulation\n", simdata.num);
     extra_data extdata;
-    trader.simulate(&simdata, &extdata);
+    trader.simulate(&simdata, &extdata, std::unique_ptr<SimOuput>());
     simdata.result = extdata;
     printf("Liquidity density vs that of xyz=k: %Lf\n", extdata.liq_density);
     printf("APY-boost: %Lf%%\n", extdata.APY_boost * 100.L);
@@ -417,7 +401,9 @@ static void usage(std::ostream& out) {
     out << "Usage: foo [options] <job.json>\n"
         << "  --threads N         run using number of threads (default: 1)\n"
         << "  --trim N            use only N last elements in time series\n"
-        << "  -r, --result FILE   write summary results to FILE\n";
+        << "  -r, --result FILE   write summary results into FILE\n"
+        << "  --out-json   FILE   write detailed JSON output into FILE (w.out extension)\n"
+        ;
 }
 
 int main(int argc, char **argv) {
@@ -425,11 +411,13 @@ int main(int argc, char **argv) {
     int param_trim    = 0;
     std::string job_file;
     std::string result_file;
+    std::string out_json;
     // Parse command line arguments using getopt
     {
         static const option long_opts[] = {
             {"threads", required_argument, nullptr, 't'},
             {"trim",    required_argument, nullptr, 1001},
+            {"out-json",required_argument, nullptr, 1002},
             {"result",  required_argument, nullptr, 'r'},
             {"help",    no_argument,       nullptr, 'h'},
             {nullptr, 0, nullptr, 0}
@@ -443,6 +431,9 @@ int main(int argc, char **argv) {
                 break;
             case 1001:
                 param_trim = std::stoi(optarg);
+                break;
+            case 1002:
+                out_json = optarg;
                 break;
             case 'r':
                 result_file = optarg;

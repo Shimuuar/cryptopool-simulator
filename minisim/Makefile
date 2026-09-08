@@ -10,7 +10,8 @@ LIB_SRC = \
 	simulation.cpp			\
 	sim-threading.cpp		\
 	sim-data.cpp			\
-	sim-json.cpp
+	sim-json.cpp			\
+	sim-output.cpp
 TEST_SRC = \
 	test/test.cpp			\
 	test/test_stableswap.cpp
