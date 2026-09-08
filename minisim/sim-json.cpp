@@ -84,6 +84,10 @@ int JSON::size() const { return as_ref().size(); }
 bool JSON::contains(const char*        k) const { return as_ref().contains(k); }
 bool JSON::contains(const std::string& k) const { return as_ref().contains(k); }
 
+bool JSON::is_string() const { return as_ref().is_string(); }
+bool JSON::is_array()  const { return as_ref().is_array();  }
+bool JSON::is_object() const { return as_ref().is_object(); }
+
 // ================================================================
 // Ref implementation
 
@@ -149,4 +153,16 @@ bool JSON::ref::contains(const char* k) const {
 }
 bool JSON::ref::contains(const std::string& k) const {
     return static_cast<json*>(m_ptr)->contains(k);
+}
+
+bool JSON::ref::is_string() const {
+    return static_cast<json*>(m_ptr)->is_string();
+}
+
+bool JSON::ref::is_array() const {
+    return static_cast<json*>(m_ptr)->is_array();
+}
+
+bool JSON::ref::is_object() const {
+    return static_cast<json*>(m_ptr)->is_object();
 }

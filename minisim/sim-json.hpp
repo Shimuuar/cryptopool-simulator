@@ -27,6 +27,9 @@ public:
         int size() const;
         bool contains(const char*) const;
         bool contains(const std::string&) const;
+        bool is_string() const;
+        bool is_array() const;
+        bool is_object() const;
 
         void save_file(const std::string& path) const;
 
@@ -63,6 +66,9 @@ public:
     int size() const;
     bool contains(const char*) const;
     bool contains(const std::string&) const;
+    bool is_string() const;
+    bool is_array() const;
+    bool is_object() const;
 
     void operator=(const JSON&);
     void operator=(const JSON::ref&);
