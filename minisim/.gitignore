@@ -1,8 +1,9 @@
-main
+minisim
 test-data/test_*
 test/test
 *.o
 *.d
+*.a
 detailed-output.json
 download
 __marimo__

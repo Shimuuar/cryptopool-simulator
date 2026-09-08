@@ -22,15 +22,15 @@ TEST_OBJ = $(patsubst test/%, build/test/%.o, $(TEST_SRC))
 LIB_DEP  = $(LIB_OBJ:.cpp.o=.cpp.d)
 TEST_DEP = $(TEST_OBJ:.cpp.o=.cpp.d)
 
-all: main
+all: minisim
 clean:
-	rm -fv build/* test/build/* *.o *.d *.a main test/*.o test/*.d test/test_dummy
-
+	rm -fv  *.a minisim
+	rm -rfv build/*
 ## ----------------------------------------------------------------
 ## Main executable
 
-main: libminisim.a build/main-stableswap-dynrate-lpf.cpp.o
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) build/main-stableswap-dynrate-lpf.cpp.o libminisim.a -o $@
+minisim: libminisim.a build/minisim.cpp.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) build/minisim.cpp.o libminisim.a -o $@
 libminisim.a: ${LIB_OBJ}
 	ar crs $@ $+
 # -MMD writes precise header deps to *.cpp.d
@@ -46,7 +46,7 @@ foo: sim-json.cpp.o foo.cpp.o
 
 test: test/test
 	./test/test
-test-run: main
+test-run: minisim
 	bash test-data/run.sh
 
 test/test: $(TEST_OBJ) libminisim.a
@@ -57,4 +57,4 @@ build/test/%.cpp.o: test/%.cpp
 
 ## ----------------------------------------------------------------
 ## Auto-generated header dependencies
--include $(LIB_DEP) $(TEST_DEP) build/main-stableswap-dynrate-lpf.cpp.d
+-include $(LIB_DEP) $(TEST_DEP) build/minisim.cpp.d

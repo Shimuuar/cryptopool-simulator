@@ -7,7 +7,7 @@ set -e
 set -o pipefail
 # If detailed outout is symlink make sure it exists
 touch detailed-output.json
-./main test-data/conf.json -r test-data/test_out.json | grep -E '^t=' > test-data/test_stdout.txt
+./minisim test-data/conf.json -r test-data/test_out.json | grep -E '^t=' > test-data/test_stdout.txt
 RES=0
 if [ "$(sha1sum < test-data/test_stdout.txt)" != "$(sha1sum < test-data/stdout.txt)" ]; then
     echo "==== STDOUT MISMATCH ===="
