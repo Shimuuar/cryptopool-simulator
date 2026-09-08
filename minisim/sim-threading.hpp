@@ -36,7 +36,7 @@ public:
     ~WorkQueue();
 
     // Add task for execution. Queue takes ownership.
-    void enqueue(Workload *w);
+    void enqueue(std::unique_ptr<Workload> w);
 
     // Start execution.
     void start();

@@ -6,6 +6,7 @@
 
 #include <getopt.h>
 #include <iostream>
+#include <sstream>
 #include <cassert>
 #include <cstdio>
 #include <string>
@@ -65,6 +66,7 @@ struct simulation_data {
     int num = 0;
     JSON jconf;
     const TradeDataArray *test_data = nullptr;
+    std::unique_ptr<SimOuput> output;
     extra_data result;
 };
 
@@ -353,8 +355,7 @@ void Trader::tweak_price_2(const FullAMMState& initial_state,
 
 class SimulationTask : public Workload {
 public:
-    SimulationTask(simulation_data _simdata, JSON *_result) :
-        simdata(_simdata),
+    SimulationTask(JSON *_result) :
         result(_result)
     {}
     simulation_data simdata;
@@ -374,7 +375,7 @@ void SimulationTask::work() {
     auto start_simulation = get_thread_time();
     printf("Configuration %d: begin simulation\n", simdata.num);
     extra_data extdata;
-    trader.simulate(&simdata, &extdata, std::unique_ptr<SimOuput>());
+    trader.simulate(&simdata, &extdata, std::move(simdata.output));
     simdata.result = extdata;
     printf("Liquidity density vs that of xyz=k: %Lf\n", extdata.liq_density);
     printf("APY-boost: %Lf%%\n", extdata.APY_boost * 100.L);
@@ -466,17 +467,21 @@ int main(int argc, char **argv) {
         }
         printf("Total %d configurations will be processed in %d threads\n", configurations, param_threads);
         std::unique_ptr<TradeDataArray> test_data = get_all(jin, param_trim);
-
         double time_start      = get_total_time();
         double wall_time_start = get_wall_time();
         WorkQueue work_queue(param_threads);
         JSON result = jin;
         for (int i = 0; i < configurations; i++) {
-            simulation_data cd;
-            cd.num = i;
-            cd.test_data = &*test_data;
-            cd.jconf = jin["configuration"][i];
-            work_queue.enqueue(new SimulationTask(cd, &result));
+            std::unique_ptr<SimulationTask> task = std::make_unique<SimulationTask>(&result);
+            task->simdata.num       = i;
+            task->simdata.test_data = &*test_data;
+            task->simdata.jconf     = jin["configuration"][i];
+            if( out_json.length() > 0 ) {
+                std::ostringstream ss;
+                ss << out_json << i << ".json";
+                task->simdata.output = makeOutputJSON(ss.str());
+            }
+            work_queue.enqueue(std::move(task));
         }
         work_queue.start();
         work_queue.join();

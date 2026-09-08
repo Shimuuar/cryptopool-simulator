@@ -184,8 +184,8 @@ void WorkQueue::join() {
     }
 }
 
-void WorkQueue::enqueue(Workload* w) {
-    impl->queue.push(std::shared_ptr<Workload>(w));
+void WorkQueue::enqueue(std::unique_ptr<Workload> w) {
+    impl->queue.push(std::shared_ptr<Workload>(w.release()));
 }
 
 void print_clock(std::string const &mesg, double start, double end) {
