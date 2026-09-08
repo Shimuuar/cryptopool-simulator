@@ -116,6 +116,59 @@ struct Trader {
     AMMState state0;
 };
 
+
+// Aggregation of boost integral
+struct AggBoostIntegral {
+    void aggBoostIntegral(money boost) {
+        boost_integral *= boost;
+    }
+    money boost_integral = 1.0;
+};
+
+// Aggregation of slippage data
+struct AggSlippage {
+    void aggSlippage(const money               dt,
+                     const FullAMMState&       state_before,
+                     const FullAMMState&       state_after,
+                     const Trade&              trade,
+                     const PriceOracle::State& oracle);
+
+    money slippage_count = 0.0;
+    money antislippage   = 0.0;
+    money slippage       = 0.0;
+    money volume         = 0.0;
+    money total_vol      = 0.0;
+};
+
+void AggSlippage::aggSlippage(const money               dt,
+                              const FullAMMState&       state_before,
+                              const FullAMMState&       state_after,
+                              const Trade&              trade,
+                              const PriceOracle::State& oracle)
+{
+    const int a = 0;
+    const int b = 1;
+    const money trade_dx = trade.amountFor(a);
+    const money trade_dy = trade.amountFor(b);
+    const money p_before = state_before.price;
+    const money p_after  = state_after.price;
+    total_vol += trade_dx * oracle.price[a];
+    volume    += trade_dy
+               / (state_after.amm.xs[b] + state_after.amm.xs[a] / p_after);
+    const money _slippage = (trade_dy * (p_before + p_after))
+                          / (2.L * (mabs(p_before - p_after)) * state_after.amm.xs[b]);
+    // Slippage
+    if (_slippage > 1e-10) {
+        slippage_count += dt;
+        antislippage   += dt * _slippage;
+        slippage       += dt / _slippage;
+        // FIXME: cannot compute imbalance
+        // imbalance      += mabs(logl(last / state_trade.amm.price[1])) * curve->A * last_time;
+    }
+}
+
+struct Aggregator : public AggBoostIntegral, public AggSlippage {};
+
 void Trader::simulate(const TradeDataArray *test_data,
                       extra_data *extdata,
                       std::unique_ptr<SimOuput> output
@@ -124,19 +177,14 @@ void Trader::simulate(const TradeDataArray *test_data,
     const size_t total_elements = test_data->size();
     const price_point* mapped_data = test_data->array();
     money xcp_profit = 1.0L;
-    money slippage = 0;
     money imbalance = 0;
-    money antislippage = 0;
-    money slippage_count = 0;
-    money volume = 0;
-    money total_vol = 0;
     FullAMMState state(state0, *curve);
     const FullAMMState initial_state = state;
     money last_prices = state.price;
     money imbalance_integral = 0;
     money APY = 0.0;
     money APY_boost = 0.0;
-    money boost_integral = 1.0;
+    Aggregator agg;
 
     assert(total_elements > 0 );
     //
@@ -193,24 +241,8 @@ void Trader::simulate(const TradeDataArray *test_data,
                 Trade        trade_fee   = trade.applyFee(fee_model->computeTradeFee(state.amm, trade));
                 FullAMMState state_trade = FullAMMState(state, trade_fee, *curve);
                 xcp_profit += (state_trade.xcp - state.xcp) / initial_state.xcp;
-                // Update trade volumes
-                const money trade_dx = trade.amountFor(a);
-                const money trade_dy = trade.amountFor(b);
-                const money p_before = state.price;
-                const money p_after  = state_trade.price;
-                total_vol += trade_dx * oracle.price[a];
-                volume    += trade_dy
-                           / (state_trade.amm.xs[b] + state_trade.amm.xs[a] / p_after);
-                const money _slippage = (trade_dy * (p_before + p_after))
-                                      / (2.L * (mabs(p_before - p_after)) * state_trade.amm.xs[b]);
-                // Slippage
-                if (_slippage > 1e-10) {
-                    slippage_count += last_time;
-                    antislippage   += last_time * _slippage;
-                    slippage       += last_time / _slippage;
-                    // FIXME: cannot compute imbalance
-                    // imbalance      += mabs(logl(last / state_trade.amm.price[1])) * curve->A * last_time;
-                }
+                // Update volume & slippage statistics
+                agg.aggSlippage(last_time, state, state_trade, trade, oracle);
                 // Apply correction to a price scale
                 FullAMMState state_price = state_trade;
                 apply_tweak_trade(state_trade, state_price);
@@ -227,7 +259,7 @@ void Trader::simulate(const TradeDataArray *test_data,
             state.amm.xs[0] = state.amm.xs[0] * _boost;
             state.amm.xs[1] = state.amm.xs[1] * _boost;
             state.compute(*curve);
-            boost_integral *= _boost;
+            agg.aggBoostIntegral(_boost);
         }
 
         // only tweak_price every N seconds or on trade
@@ -245,8 +277,8 @@ void Trader::simulate(const TradeDataArray *test_data,
 
         money ideal_vp = 1 + (xcp_profit - 1) * lp_profit_fraction;
         money ARU_y    = (86400.L * 365.L / (d.t - start_t + 1.L));
-        APY            = powl(ideal_vp,                  ARU_y) - 1.L;
-        APY_boost      = powl(ideal_vp / boost_integral, ARU_y) - 1.L;
+        APY            = powl(ideal_vp,                      ARU_y) - 1.L;
+        APY_boost      = powl(ideal_vp / agg.boost_integral, ARU_y) - 1.L;
 
         if (i % 1024 == 0 && log) {
             money xcp_profit_real = state.xcp / initial_state.xcp;
@@ -255,7 +287,7 @@ void Trader::simulate(const TradeDataArray *test_data,
                    100.L * i / total_elements,
                    last,
                    state.amm.price.p[1],
-                   total_vol,
+                   agg.total_vol,
                    (xcp_profit_real - 1.) / (xcp_profit - 1.L),
                    xcp_profit_real,
                    APY * 100.L,
@@ -266,16 +298,16 @@ void Trader::simulate(const TradeDataArray *test_data,
             output->recordPoint(d.t, initial_state, state, oracle, xcp_profit, local_boost_rate);
         }
 
-        if (slippage > 1e20 and slippage_count > 0) {
-            printf("*** Slippage is too high %.5Lf\n", slippage);
+        if (agg.slippage > 1e20 and agg.slippage_count > 0) {
+            printf("*** Slippage is too high %.5Lf\n", agg.slippage);
         }
     }
     extdata->imbalance_integral = imbalance_integral / (oracle.time - start_t + 1.L);
-    extdata->slippage = slippage / slippage_count / 2.L;
-    extdata->imbalance = imbalance / slippage_count / 2.L;
-    extdata->liq_density = 2.L * antislippage / slippage_count;
+    extdata->slippage = agg.slippage / agg.slippage_count / 2.L;
+    extdata->imbalance = imbalance / agg.slippage_count / 2.L;
+    extdata->liq_density = 2.L * agg.antislippage / agg.slippage_count;
     extdata->APY = APY;
-    extdata->volume = volume;
+    extdata->volume = agg.volume;
     extdata->APY_boost = APY_boost;
     extdata->APR_geo_mean = 0;
 }
