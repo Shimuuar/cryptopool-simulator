@@ -2,7 +2,7 @@
 .PHONY: all clean test test-run
 
 CXX           = g++
-CXXFLAGS      = -Wall -g -O2 -std=c++17 -I..
+CXXFLAGS      = -Wall -g -O2 -std=c++17 -I.. -Ivendored
 LDFLAGS       =
 CXXFLAGS_TEST = $(CXXFLAGS) -I. $(shell pkg-config --cflags gtest_main)
 LDFLAGS_TEST  = $(LDFLAGS) $(shell pkg-config --libs gtest_main)
@@ -12,11 +12,15 @@ LIB_SRC = \
 	sim-data.cpp			\
 	sim-json.cpp			\
 	sim-output.cpp
+VENDORED_SRC = \
+	simdjson.cpp
 TEST_SRC = \
 	test/test.cpp			\
 	test/test_stableswap.cpp
 
-LIB_OBJ  = $(patsubst %,      build/%.o,      $(LIB_SRC))
+LIB_OBJ  = \
+	$(patsubst %,      build/%.o,      $(LIB_SRC))	\
+	$(patsubst %,      build/%.o,      $(VENDORED_SRC))
 TEST_OBJ = $(patsubst test/%, build/test/%.o, $(TEST_SRC))
 
 # Compiler-generated dependency files (one per object).
@@ -40,9 +44,10 @@ libminisim.a: ${LIB_OBJ}
 build/%.cpp.o: %.cpp
 	mkdir -p build
 	$(CXX) $(CXXFLAGS) -MMD -c $< -o $@
+build/%.cpp.o: vendored/%.cpp
+	mkdir -p build
+	$(CXX) $(CXXFLAGS) -MMD -c $< -o $@
 
-foo: sim-json.cpp.o foo.cpp.o
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $+ -o $@
 
 ## ----------------------------------------------------------------
 ## Tests
