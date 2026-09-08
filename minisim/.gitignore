@@ -1,4 +1,5 @@
 minisim
+minisim-make-mmap
 test-data/test_*
 test/test
 *.o

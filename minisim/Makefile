@@ -22,7 +22,7 @@ TEST_OBJ = $(patsubst test/%, build/test/%.o, $(TEST_SRC))
 LIB_DEP  = $(LIB_OBJ:.cpp.o=.cpp.d)
 TEST_DEP = $(TEST_OBJ:.cpp.o=.cpp.d)
 
-all: minisim
+all: minisim minisim-make-mmap
 clean:
 	rm -fv  *.a minisim
 	rm -rfv build/*
@@ -30,7 +30,9 @@ clean:
 ## Main executable
 
 minisim: libminisim.a build/minisim.cpp.o
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) build/minisim.cpp.o libminisim.a -o $@
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) build/$@.cpp.o libminisim.a -o $@
+minisim-make-mmap: libminisim.a build/minisim-make-mmap.cpp.o
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) build/$@.cpp.o libminisim.a -o $@
 libminisim.a: ${LIB_OBJ}
 	ar crs $@ $+
 # -MMD writes precise header deps to *.cpp.d
