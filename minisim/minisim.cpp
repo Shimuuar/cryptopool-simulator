@@ -167,7 +167,24 @@ void AggSlippage::aggSlippage(const money               dt,
     }
 }
 
-struct Aggregator : public AggBoostIntegral, public AggSlippage {};
+struct AggImbalance {
+    void aggImbalance(money dt, const AMMState& state);
+
+    money imbalance_integral = 0.0;
+};
+
+void AggImbalance::aggImbalance(money dt, const AMMState& state) {
+    TokensXP _xp(state);
+    money bal_mul = (_xp[0] + _xp[1]);
+    bal_mul = 4 * _xp[0] * _xp[1] / (bal_mul * bal_mul);
+    imbalance_integral += (1.L - bal_mul) * dt;
+}
+
+struct Aggregator :
+    public AggBoostIntegral,
+    public AggSlippage,
+    public AggImbalance
+{};
 
 void Trader::simulate(const TradeDataArray *test_data,
                       extra_data *extdata,
@@ -181,7 +198,6 @@ void Trader::simulate(const TradeDataArray *test_data,
     FullAMMState state(state0, *curve);
     const FullAMMState initial_state = state;
     money last_prices = state.price;
-    money imbalance_integral = 0;
     money APY = 0.0;
     money APY_boost = 0.0;
     Aggregator agg;
@@ -268,12 +284,7 @@ void Trader::simulate(const TradeDataArray *test_data,
             apply_tweak_trade(state_, state);
         }
 
-        {
-            TokensXP _xp(state.amm);
-            money bal_mul = (_xp[0] + _xp[1]);
-            bal_mul = 4 * _xp[0] * _xp[1] / (bal_mul * bal_mul);
-            imbalance_integral += (1.L - bal_mul) * last_time;  // last_time is dt here
-        }
+        agg.aggImbalance(last_time, state.amm);
 
         money ideal_vp = 1 + (xcp_profit - 1) * lp_profit_fraction;
         money ARU_y    = (86400.L * 365.L / (d.t - start_t + 1.L));
@@ -302,7 +313,7 @@ void Trader::simulate(const TradeDataArray *test_data,
             printf("*** Slippage is too high %.5Lf\n", agg.slippage);
         }
     }
-    extdata->imbalance_integral = imbalance_integral / (oracle.time - start_t + 1.L);
+    extdata->imbalance_integral = agg.imbalance_integral / (oracle.time - start_t + 1.L);
     extdata->slippage = agg.slippage / agg.slippage_count / 2.L;
     extdata->imbalance = imbalance / agg.slippage_count / 2.L;
     extdata->liq_density = 2.L * agg.antislippage / agg.slippage_count;
