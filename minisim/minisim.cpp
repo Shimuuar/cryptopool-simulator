@@ -162,7 +162,7 @@ void AggSlippage::aggSlippage(const money               dt,
         slippage_count += dt;
         antislippage   += dt * _slippage;
         slippage       += dt / _slippage;
-        // FIXME: cannot compute imbalance
+        // FIXME: cannot compute imbalance. Formula below is curve specific
         // imbalance      += mabs(logl(last / state_trade.amm.price[1])) * curve->A * last_time;
     }
 }
