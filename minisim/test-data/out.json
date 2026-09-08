@@ -37,7 +37,7 @@
         }
     ],
     "datafile": [
-        "../btc"
+        "btc.json"
     ],
     "debug": 0
 }

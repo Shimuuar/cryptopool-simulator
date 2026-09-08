@@ -57,9 +57,8 @@ namespace {
 
 std::vector<OHLC> read_binance_data(std::string const &fname) {
     auto start_time = get_thread_time();
-    auto name_to_open = "download/" + fname + ".json";
-    printf("parsing %s\n", name_to_open.c_str());
-    MMappedFile mf( name_to_open );
+    printf("parsing %s\n", fname.c_str());
+    MMappedFile mf( fname );
     std::vector<OHLC> ret;
     // FIXME: We may well go past data
     auto p = mf.buffer();
@@ -106,7 +105,7 @@ std::vector<OHLC> read_binance_data(std::string const &fname) {
         } else p++;
     }
     auto end_time = get_thread_time();
-    printf("%s: load %zu elements\n", name_to_open.c_str(), ret.size());
+    printf("%s: load %zu elements\n", fname.c_str(), ret.size());
     print_clock("parsing took", start_time, end_time);
     return ret;
 }
