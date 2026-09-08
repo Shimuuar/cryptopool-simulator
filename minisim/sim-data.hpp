@@ -46,3 +46,10 @@ std::vector<OHLC> read_binance_data(std::string const &fname);
 //
 // If last_elems is not zero only N last elements are returned
 TradeDataArray* preprocessOHLC(const std::vector<OHLC>& data, int last_elems = 0);
+
+
+// Load data from mmap'd file with already prepared price_point data.
+// This is fastest way of reading candlesticks data but most dangerous
+// as well.  Memory dump must be prepared by same version of
+// minisim-make-mmap utility.
+TradeDataArray* read_mmaped_data(const std::string& fname);

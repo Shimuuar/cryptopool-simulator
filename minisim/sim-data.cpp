@@ -25,9 +25,9 @@ namespace {
         ~MMappedFile();
 
         // Size of file
-        size_t      size()   { return m_size; }
+        size_t size() const { return m_size; }
         // Underlying buffer
-        const unsigned char* buffer() { return m_ptr; }
+        const unsigned char* buffer() const { return m_ptr; }
     private:
         int            m_fd;
         unsigned char *m_ptr;
@@ -189,3 +189,34 @@ TradeDataArray* preprocessOHLC(const std::vector<OHLC>& all_trades, int last_ele
     return new TradeDataVector(std::move(out));
 }
 
+
+// ----------------------------------------------------------------
+// MMAP'ed data
+
+namespace {
+    class TradeDataMmap: public TradeDataArray {
+    public:
+        TradeDataMmap(const std::string& file):
+            m_mmap(file)
+        {
+            if( m_mmap.size() % sizeof(price_point) != 0 ) {
+                throw std::runtime_error("mmap'ed file has incorrect length");
+            }
+        }
+        virtual ~TradeDataMmap() = default;
+
+        virtual size_t size()  const {
+            return m_mmap.size() / sizeof(price_point);
+        }
+        virtual const price_point* array() const {
+            return reinterpret_cast<const price_point*>(m_mmap.buffer());
+        }
+    private:
+        MMappedFile m_mmap;
+    };
+}
+
+
+TradeDataArray* read_mmaped_data(const std::string& fname) {
+    return new TradeDataMmap(fname);
+}
