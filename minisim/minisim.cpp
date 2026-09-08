@@ -28,7 +28,7 @@ TradeDataArray* get_all(const JSON &jin, int last_elems) {
     }
     string name = jin["datafile"][0];
     printf("using file '%s'\n", name.c_str());
-    vector<OHLC> all_trades = get_data(name);
+    vector<OHLC> all_trades = read_binance_data(name);
     TradeDataArray* arr = preprocessOHLC(all_trades, last_elems);
     return arr;
 }

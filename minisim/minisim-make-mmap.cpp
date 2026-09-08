@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
     //
     try {
         // Load data
-        std::vector<OHLC> candles = get_data(input);
+        std::vector<OHLC> candles = read_binance_data(input);
         std::unique_ptr<TradeDataArray> data(preprocessOHLC(candles));
         // Wrire data for
         std::ofstream f_out;

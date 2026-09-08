@@ -40,7 +40,7 @@ public:
 
 // Load data from JSONs produced by Binance. It uses handrolled parser
 // for speed.
-std::vector<OHLC> get_data(std::string const &fname);
+std::vector<OHLC> read_binance_data(std::string const &fname);
 
 // Convert OHCL data into time series for simulation
 //

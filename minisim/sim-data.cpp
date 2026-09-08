@@ -55,7 +55,7 @@ namespace {
 }
 
 
-std::vector<OHLC> get_data(std::string const &fname) {
+std::vector<OHLC> read_binance_data(std::string const &fname) {
     auto start_time = get_thread_time();
     auto name_to_open = "download/" + fname + ".json";
     printf("parsing %s\n", name_to_open.c_str());
