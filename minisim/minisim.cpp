@@ -109,7 +109,7 @@ struct Trader {
                        money spot_prev,
                        PriceOracle::State &oracle);
 
-    void simulate(simulation_data *simdata, extra_data *extdata, std::unique_ptr<SimOuput> output);
+    void simulate(const TradeDataArray*test_data, extra_data *extdata, std::unique_ptr<SimOuput> output);
 
     PriceOracle price_oracle;
     money dx;
@@ -125,13 +125,13 @@ struct Trader {
     AMMState state0;
 };
 
-void Trader::simulate(simulation_data *simdata,
+void Trader::simulate(const TradeDataArray *test_data,
                       extra_data *extdata,
                       std::unique_ptr<SimOuput> output
     )
 {
-    const size_t total_elements = simdata->test_data->size();
-    const price_point* mapped_data = simdata->test_data->array();
+    const size_t total_elements = test_data->size();
+    const price_point* mapped_data = test_data->array();
     money xcp_profit = 1.0L;
     money slippage = 0;
     money imbalance = 0;
@@ -375,7 +375,7 @@ void SimulationTask::work() {
     auto start_simulation = get_thread_time();
     printf("Configuration %d: begin simulation\n", simdata.num);
     extra_data extdata;
-    trader.simulate(&simdata, &extdata, std::move(simdata.output));
+    trader.simulate(simdata.test_data, &extdata, std::move(simdata.output));
     simdata.result = extdata;
     printf("Liquidity density vs that of xyz=k: %Lf\n", extdata.liq_density);
     printf("APY-boost: %Lf%%\n", extdata.APY_boost * 100.L);
