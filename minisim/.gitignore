@@ -5,3 +5,4 @@ test/test
 *.d
 detailed-output.json
 download
+__marimo__
