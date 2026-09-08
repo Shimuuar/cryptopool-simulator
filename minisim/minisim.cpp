@@ -21,7 +21,7 @@ static inline money mabs(money val) noexcept {
     return val >= 0 ? val : -val;
 }
 
-TradeDataArray* get_all(const JSON &jin, int last_elems) {
+std::unique_ptr<TradeDataArray> get_all(const JSON &jin, int last_elems) {
     if( jin["datafile"].size() != 1 ) {
         std::cerr << "Minisim: only 2-coin pools are supported\n";
         exit(1);
@@ -29,20 +29,20 @@ TradeDataArray* get_all(const JSON &jin, int last_elems) {
     JSON::ref data = jin["datafile"][0];
     // Legacy convention
     if( data.is_string() ) {
-        std::string name = data;
+        std::string name = "download/" + static_cast<std::string>(data) + ".json";
         printf("using Binance JSON file '%s'\n", name.c_str());
-        vector<OHLC> all_trades = read_binance_data("download/" + name + ".json");
-        return preprocessOHLC(all_trades, last_elems);
+        return make_binance_data(name, last_elems);
     }
     // New conventions
     std::string source = data["source"];
     if( source == "binance" ) {
         std::string name = data["file"];
         printf("using Binance JSON file '%s'\n", name.c_str());
-        vector<OHLC> all_trades = read_binance_data(name);
-        return preprocessOHLC(all_trades, last_elems);
+        return make_binance_data(name, last_elems);
     } else if( source == "mmap" ) {
-        return read_mmaped_data(data["file"]);
+        std::string name = data["file"];
+        printf("using mmaped data '%s'\n", name.c_str());
+        return make_mmaped_data(name);
     }
     throw std::runtime_error("Unknow data source");
 }
@@ -474,7 +474,7 @@ int main(int argc, char **argv) {
             return 0;
         }
         printf("Total %d configurations will be processed in %d threads\n", configurations, param_threads);
-        std::unique_ptr<TradeDataArray> test_data(get_all(jin, param_trim));
+        std::unique_ptr<TradeDataArray> test_data = get_all(jin, param_trim);
 
         double time_start      = get_total_time();
         double wall_time_start = get_wall_time();

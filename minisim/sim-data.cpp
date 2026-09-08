@@ -189,6 +189,11 @@ TradeDataArray* preprocessOHLC(const std::vector<OHLC>& all_trades, int last_ele
     return new TradeDataVector(std::move(out));
 }
 
+std::unique_ptr<TradeDataArray> make_binance_data(const std::string& fname, int last_elem) {
+    std::vector<OHLC> all_trades = read_binance_data(fname);
+    return std::unique_ptr<TradeDataArray>( preprocessOHLC(all_trades, last_elem) );
+}
+
 
 // ----------------------------------------------------------------
 // MMAP'ed data
@@ -217,6 +222,6 @@ namespace {
 }
 
 
-TradeDataArray* read_mmaped_data(const std::string& fname) {
-    return new TradeDataMmap(fname);
+std::unique_ptr<TradeDataArray> make_mmaped_data(const std::string& fname) {
+    return std::make_unique<TradeDataMmap>(fname);
 }

@@ -2,6 +2,7 @@
 // APIs for loading of trading data used by simulation.
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "simulation.hpp"
 
@@ -38,6 +39,18 @@ public:
 };
 
 
+// Load data from mmap'd file with already prepared price_point data.
+// This is fastest way of reading candlesticks data but most dangerous
+// as well.  Memory dump must be prepared by same version of
+// minisim-make-mmap utility.
+std::unique_ptr<TradeDataArray> make_mmaped_data(const std::string& fname);
+
+// Read data from Binance JSON files 
+std::unique_ptr<TradeDataArray> make_binance_data(const std::string& fname, int last_elem);
+
+
+
+
 // Load data from JSONs produced by Binance. It uses handrolled parser
 // for speed.
 std::vector<OHLC> read_binance_data(std::string const &fname);
@@ -48,8 +61,3 @@ std::vector<OHLC> read_binance_data(std::string const &fname);
 TradeDataArray* preprocessOHLC(const std::vector<OHLC>& data, int last_elems = 0);
 
 
-// Load data from mmap'd file with already prepared price_point data.
-// This is fastest way of reading candlesticks data but most dangerous
-// as well.  Memory dump must be prepared by same version of
-// minisim-make-mmap utility.
-TradeDataArray* read_mmaped_data(const std::string& fname);
