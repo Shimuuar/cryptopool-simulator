@@ -5,6 +5,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <stdexcept>
+#include <charconv>
+#include <simdjson.h>
 
 #ifndef MAP_NOCACHE
 #define MAP_NOCACHE 0
@@ -59,51 +61,127 @@ std::vector<OHLC> read_binance_data(std::string const &fname) {
     auto start_time = get_thread_time();
     printf("parsing %s\n", fname.c_str());
     MMappedFile mf( fname );
-    std::vector<OHLC> ret;
-    // FIXME: We may well go past data
-    auto p = mf.buffer();
-    if (*p == '[') p++; // skip initial '[';
-    auto scan_double = [] (const unsigned char *p, long double *d) {
-        if (*p == '"') p++;
-        *d = atof((char *)p);
-        while (*p != '"' && *p!= ' ' && *p != ',' && *p != ']') p++;
-        while (*p == ',' || *p == ' ' || *p == '"') p++;
-        return p;
-    };
-    auto scan_u64 = [] (const unsigned char *p, u64 *d) {
-        u64 ret = 0;
-        while (*p >= '0' && *p <= '9') {
-            ret = ret * 10 + *p - '0';
-            p++;
-        }
-        while (*p == ',' || *p == ' ') p++;
-        *d = ret;
-        return p;
-    };
-    while (*p != ']') {
-        // [1503443580000, "3984.00000000", "3984.00000000", "3984.00000000", "3984.00000000", "0.46619400", 1503443639999, "1857.31689600", 2, "0.00000000", "0.00000000", "11761.90492277"],
-        if (*p == '[') {
-            OHLC d;
-            p++;
-            p = scan_u64(p, &d.t);
-            if (d.t > 10000000000) {
-                d.t /= 1000;
-            }
-            p = scan_double(p, &d.open);
-            p = scan_double(p, &d.high);
-            p = scan_double(p, &d.low);
-            if (d.high < d.low) {
-                auto _high = d.low;
-                d.low = d.high;
-                d.high = _high;
-            }
-            p = scan_double(p, &d.close);
-            p = scan_double(p, &d.volume);
-            ret.push_back(d);
-            while (*p != ']') p++;
-            p++; // skip ']'
-        } else p++;
+
+    // Parse the mmap'ed buffer with simdjson.  mmap'ed data has no
+    // SIMDJSON_PADDING bytes at the end, so the parser copies it into
+    // its own internal padded buffer (realloc_if_needed defaults to
+    // true) and the resulting DOM stays valid until `parser` dies.
+    simdjson::dom::parser parser;
+    simdjson::dom::element root;
+    simdjson::error_code err =
+        parser.parse(reinterpret_cast<const char*>(mf.buffer()), mf.size()).get(root);
+    if( err ) {
+        throw std::runtime_error("Failed to parse JSON in '"+fname+"': " +simdjson::error_message(err));
     }
+    // Top level JSON is an array of candlestick records.
+    simdjson::dom::array records;
+    err = root.get_array().get(records);
+    if( err ) {
+        throw std::runtime_error(
+            "JSON in '" + fname + "' is not an array of records: " +
+            simdjson::error_message(err));
+    }
+
+    std::vector<OHLC> ret;
+    ret.reserve(records.size()); // exact count while it is below 2^24
+
+    // Prices/volumes are stored as decimal strings (e.g. "3984.00000000").
+    // Parse them at double precision (like the historical atof()-based
+    // parser did) and widen to money; fall back to raw JSON numbers.
+    auto parse_money = [](simdjson::dom::element field, const char* what) -> money {
+        simdjson::error_code err;
+        switch( field.type() ) {
+        case simdjson::dom::element_type::STRING: {
+            std::string_view s;
+            err = field.get_string().get(s);
+            if( err ) {
+                throw std::runtime_error(std::string("Invalid string field ") + what);
+            }
+            double d = 0;
+            auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), d);
+            if( ec != std::errc() || ptr != s.data() + s.size() ) {
+                throw std::runtime_error(
+                    "Invalid number '"+std::string(s)+"' for field "+what);
+            }
+            return d;
+        }
+        case simdjson::dom::element_type::DOUBLE: {
+            double d = 0;
+            err = field.get_double().get(d);
+            if( err ) {
+                throw std::runtime_error(std::string("Invalid number field ") + what);
+            }
+            return d;
+        }
+        case simdjson::dom::element_type::UINT64: {
+            uint64_t v = 0;
+            err = field.get_uint64().get(v);
+            if( err ) {
+                throw std::runtime_error(std::string("Invalid number field ") + what);
+            }
+            return (money)v;
+        }
+        case simdjson::dom::element_type::INT64: {
+            int64_t v = 0;
+            err = field.get_int64().get(v);
+            if( err ) {
+                throw std::runtime_error(std::string("Invalid number field ") + what);
+            }
+            return (money)v;
+        }
+        default:
+            throw std::runtime_error(std::string("Field ") + what + " is not a number");
+        }
+    };
+
+    // Each record: [time, open, high, low, close, volume, ...]
+    for( simdjson::dom::element record : records ) {
+        simdjson::dom::array fields;
+        err = record.get_array().get(fields);
+        if( err ) {
+            throw std::runtime_error(
+                std::string("Record in '") + fname + "' is not an array: " +
+                simdjson::error_message(err));
+        }
+
+        OHLC d;
+        int idx = 0;
+        for( simdjson::dom::element field : fields ) {
+            switch( idx ) {
+            case 0: { // open time, in milliseconds
+                uint64_t t = 0;
+                err = field.get_uint64().get(t);
+                if( err ) {
+                    throw std::runtime_error(
+                        std::string("Invalid time in '") + fname + "': " +
+                        simdjson::error_message(err));
+                }
+                if( t > 10000000000ull ) {
+                    t /= 1000; // ms -> s
+                }
+                d.t = t;
+                break;
+            }
+            case 1: d.open   = parse_money(field, "open");   break;
+            case 2: d.high   = parse_money(field, "high");   break;
+            case 3: d.low    = parse_money(field, "low");    break;
+            case 4: d.close  = parse_money(field, "close");  break;
+            case 5: d.volume = parse_money(field, "volume"); break;
+            default: break; // rest of the record is irrelevant
+            }
+            ++idx;
+        }
+        if( idx < 6 ) {
+            throw std::runtime_error(
+                std::string("Short record in '") + fname + "': expected >= 6 fields, got " +
+                std::to_string(idx));
+        }
+        if( d.high < d.low ) {
+            std::swap(d.high, d.low);
+        }
+        ret.push_back(d);
+    }
+
     auto end_time = get_thread_time();
     printf("%s: load %zu elements\n", fname.c_str(), ret.size());
     print_clock("parsing took", start_time, end_time);
