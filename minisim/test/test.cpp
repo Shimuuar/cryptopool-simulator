@@ -106,16 +106,16 @@ TEST_P(CurveTest, XForPrice) {
         TokensXP x;
         curve.computeXforP(st0, P, x);
         AMMState st = st0;
-        st.xs[0] = x[0];
-        st.xs[1] = x[1];
+        st.xs[0] = x[0] / st.price[0];
+        st.xs[1] = x[1] / st.price[1];
         money D0 = curve.computeD(st0);
         money D  = curve.computeD(st);
-        EXPECT_NEAR(D0, D, 1e-12)
+        EXPECT_NEAR(D0, D, 1e-12*D0)
             << "D is conserved" << std::endl
             << "st0 = " << st0 << std::endl
             << "st  = " << st  << std::endl
             << "P = " << P;
-        EXPECT_NEAR(curve.computeP(st), P, 1e-12)
+        EXPECT_NEAR(curve.computeP(st), P, 1e-12*P)
             << "P is correct" << std::endl
             << "st0 = " << st0 << std::endl
             << "st  = " << st  << std::endl

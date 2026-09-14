@@ -127,9 +127,60 @@ money Stableswap::computeY(const AMMState& st, money x, int i, int j) const {
     return ret;
 }
 
-void Stableswap::computeXforP(const AMMState& st, money P, TokensXP& x) const {
-    x[0] = 10;
-    x[1] = 10;
+void Stableswap::computeXforP(const AMMState& st, const money P, TokensXP& xp) const {
+    const money D = computeD(st);
+    // We solve equation for X using newton's method And we pick state
+    // st as initial approximation. It certainly have correct
+    // invariant.
+    //
+    // This is bracket for root. Negative values means we don't know.
+    money x_low = 0;
+    money x_hi  = 1.0 / 0.0;
+    auto update_bracket = [&](money dP){
+        if( dP > 0 ) {
+            x_hi = xp.x[0];
+        } else {
+            x_low = xp.x[0];
+        }
+    };
+    // Initial approximation
+    xp = TokensXP(st);
+    money dP = get_p_2(xp, D, A) - P;
+    update_bracket(dP);
+    for(int i = 0; i < 100; i++) {
+        // Computation of dP/dx is made performed using sympy in stableswap.py
+        //
+        // Sadly sympy is not very good at CSE with powers
+        money dP_dx;
+        const money x = xp.x[0];
+        const money y = xp.x[1];
+        {
+            const money x0 = y*y;
+            const money x3 = x*x;
+            const money D3 = D*D*D;
+            const money x5 = 64*(A*A);
+            const money x1 = 8*A;
+            const money x2 = x*x0*x1;
+            const money x4 = x1*x3*y;
+            dP_dx = 2*D3*1.0/y*(D3*x2 + D3*x4 + x0*x5*(x*x*x*x) + x3*x5*(y*y*y*y) - x5*x*x*x*y*y*y + D3*D3)/((D3 + x2)*pow(D3 + x4, 2));
+        }
+        // Compute new estimate for X
+        xp.x[0] = x - dP / dP_dx;
+        if( xp.x[0] < x_low ) {
+            xp.x[0] = (x + x_low) / 2;
+        } else if( xp.x[0] > x_hi ) {
+            xp.x[0] = (x + x_hi) / 2;
+        }
+        // And Y
+        xp.x[1] = solve_x(A, xp, D, 1);
+        if( mabs( xp.x[0] - x ) / x < 1e-9 ) {
+            return;
+        }
+        // Convergence is not reached compute new dP
+        dP = get_p_2(xp, D, A) - P;
+        update_bracket(dP);
+    }
+    throw std::runtime_error("Convergence failed");
 }
 
 money Stableswap::computeP(const AMMState& st) const {
@@ -165,8 +216,9 @@ money ConstantProduct::computeY(const AMMState& st, money x, int i, int j) const
 }
 
 void ConstantProduct::computeXforP(const AMMState& st, money P, TokensXP& x) const {
-    money D     = sqrtl(st.xs[0] * st.xs[1]); // Not quite invariant
-    money sqrtP = sqrtl(P * st.price[1]);
+    TokensXP x0(st);
+    money D     = sqrtl(x0[0] * x0[1]); // Not quite invariant
+    money sqrtP = sqrtl(P);
     x[0] = D * sqrtP;
     x[1] = D / sqrtP;
 }
