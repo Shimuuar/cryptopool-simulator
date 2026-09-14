@@ -95,10 +95,6 @@ static money get_p_2(const TokensXP& x, money D, money A) {
         (xp0_A + Dr * x[0] / x[1]) / (xp0_A + Dr);
 }
 
-static money solve_x(money A, const TokensXP& x, money D, int i) {
-    return newton_y(A, x, D, i);
-}
-
 static money solve_D(money A, const TokensXP &x) {
     auto D0 = 2 * geometric_mean_2(x); //  # <- fuzz to make sure it's ok XXX
     return newton_D_2(A, x, D0);
@@ -122,7 +118,7 @@ money Stableswap::computeD(const AMMState& st) const {
 money Stableswap::computeY(const AMMState& st, money x, int i, int j) const {
     TokensXP xp(st);
     xp[i] = x * st.price[i];
-    auto yp = solve_x(A, xp, computeD(st), j);
+    auto yp = newton_y(A, xp, computeD(st), j);
     auto ret = yp / st.price[j];
     return ret;
 }
@@ -172,7 +168,7 @@ void Stableswap::computeXforP(const AMMState& st, const money P, TokensXP& xp) c
             xp.x[0] = (x + x_hi) / 2;
         }
         // And Y
-        xp.x[1] = solve_x(A, xp, D, 1);
+        xp.x[1] = newton_y(A, xp, D, 1);
         if( mabs( xp.x[0] - x ) / x < 1e-9 ) {
             return;
         }
