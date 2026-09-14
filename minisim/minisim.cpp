@@ -522,7 +522,9 @@ int main(int argc, char **argv) {
         work_queue.start();
         work_queue.join();
 
-        result.save_file(result_file);
+        if( result_file.size() > 0 ) {
+            result.save_file(result_file);
+        }
         double time_end = get_total_time();
         double wall_time_end = get_wall_time();
         print_clock("Data reading and preprocessing time", real_time_start, time_start);
