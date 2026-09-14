@@ -71,7 +71,7 @@ def _(A, curve_paper, solve, x, y):
 @app.cell
 def _(solve_for_D_numeric):
     print('\n'.join([
-        str(solve_for_D_numeric(5,x,y))
+        str((x,y,solve_for_D_numeric(5,x,y)))
         for x,y in [(1,1), (1,2), (1,3), (1,4), (1,5)]
     ]))
     return
@@ -79,7 +79,13 @@ def _(solve_for_D_numeric):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Solving for D""")
+    mo.md(
+        r"""
+    ## Solving for D
+
+    First we obtain analytic solution which is possible for cubic equation
+    """
+    )
     return
 
 
@@ -104,7 +110,6 @@ def _(mo):
     Note this is very conveninently depressed cubic equation:
 
     $$x^3 + px + q = 0$$
-
     """
     )
     return
@@ -166,6 +171,30 @@ def _(p_D, q_D, sqrt, x, y):
 def _(cbrt, q_D, sqrt_D):
     root_D = -cbrt(q_D/2 + sqrt_D) + cbrt(-q_D/2 + sqrt_D)
     root_D
+    return (root_D,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
+    Now how does root looks in $s$,$Q$ variables:
+
+    $$
+    \begin{aligned}
+    s &= \sqrt{xy}\\
+    Q &= \sqrt{\frac{x}{y}} + \sqrt{\frac{y}{x}}
+    \end{aligned}
+    $$
+    """
+    )
+    return
+
+
+@app.cell
+def _(Q, root_D, s, x, y):
+    root_D_s = root_D.subs({x*y:s**2, x+y: s*Q}).simplify()
+    root_D_s
     return
 
 
