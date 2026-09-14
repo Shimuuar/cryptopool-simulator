@@ -41,6 +41,7 @@ struct Tokens {
 
 // Amount of tokens after conversion by price scale
 struct TokensXP {
+    TokensXP() = default;
     TokensXP(const Tokens&, const Prices&);
     TokensXP(const AMMState&);
 
@@ -142,12 +143,15 @@ money step_for_price_2(
 // ----------------------------------------------------------------
 
 
-// Definition of AMM curve
+// Definition of AMM curve. All tokens amount are already reduced
+// using price scale.
 class Curve : public Factory<Curve> {
 public:
     virtual ~Curve() = default;
-    // Compute value of x[j] for giben x[i].
+    // Compute value of x[j] for given x[i] leaving invariant constant.
     virtual money computeY(const AMMState& st, money x, int i, int j) const = 0;
+    // Compute value of tokens for given price (reduced by price scale). 
+    virtual void computeXforP(const AMMState& st, money P, TokensXP& x) const = 0;
     // Compute relative price for given AMM state. It uses token
     // reduced by price scale.
     virtual money computeP(const AMMState& st) const = 0;
@@ -176,6 +180,7 @@ public:
     ~Stableswap() = default;
 
     virtual money computeY(const AMMState& st, money x, int i, int j) const override;
+    virtual void computeXforP(const AMMState& st, money P, TokensXP& x) const override;
     virtual money computeP(const AMMState& st)   const override;
     virtual money computeXcp(const AMMState& st) const override;
     virtual money computeD(const AMMState& st)   const override;
@@ -190,6 +195,7 @@ public:
     ~ConstantProduct() = default;
 
     virtual money computeY(const AMMState& st, money x, int i, int j) const override;
+    virtual void computeXforP(const AMMState& st, money P, TokensXP& x) const override;
     virtual money computeP(const AMMState& st)   const override;
     virtual money computeXcp(const AMMState& st) const override;
     virtual money computeD(const AMMState& st)   const override;

@@ -98,6 +98,53 @@ TEST_P(CurveTest, Price) {
     }
 }
 
+// Check that computation of state at given price is correct
+TEST_P(CurveTest, XForPrice) {
+    const Curve& curve = *GetParam();
+    //
+    auto test_price = [&](const AMMState& st0, money P) {
+        TokensXP x;
+        curve.computeXforP(st0, P, x);
+        AMMState st = st0;
+        st.xs[0] = x[0] / st.price[0];
+        st.xs[1] = x[1] / st.price[1];
+        money D0 = curve.computeD(st0);
+        money D  = curve.computeD(st);
+        EXPECT_NEAR(D0, D, 1e-12*D0)
+            << "D is conserved" << std::endl
+            << "st0 = " << st0 << std::endl
+            << "st  = " << st  << std::endl
+            << "P = " << P;
+        EXPECT_NEAR(curve.computeP(st), P, 1e-12*P)
+            << "P is correct" << std::endl
+            << "st0 = " << st0 << std::endl
+            << "st  = " << st  << std::endl
+            << "P = " << P;
+    };
+    //
+    money prices[] = {1.00000000e-02, 1.20679264e-02, 1.45634848e-02, 1.75751062e-02,
+       2.12095089e-02, 2.55954792e-02, 3.08884360e-02, 3.72759372e-02,
+       4.49843267e-02, 5.42867544e-02, 6.55128557e-02, 7.90604321e-02,
+       9.54095476e-02, 1.15139540e-01, 1.38949549e-01, 1.67683294e-01,
+       2.02358965e-01, 2.44205309e-01, 2.94705170e-01, 3.55648031e-01,
+       4.29193426e-01, 5.17947468e-01, 6.25055193e-01, 7.54312006e-01,
+       9.10298178e-01, 1.09854114e+00, 1.32571137e+00, 1.59985872e+00,
+       1.93069773e+00, 2.32995181e+00, 2.81176870e+00, 3.39322177e+00,
+       4.09491506e+00, 4.94171336e+00, 5.96362332e+00, 7.19685673e+00,
+       8.68511374e+00, 1.04811313e+01, 1.26485522e+01, 1.52641797e+01,
+       1.84206997e+01, 2.22299648e+01, 2.68269580e+01, 3.23745754e+01,
+       3.90693994e+01, 4.71486636e+01, 5.68986603e+01, 6.86648845e+01,
+       8.28642773e+01, 1.00000000e+02};
+    const AMMState st1(1e6, Prices({1, 1} ));
+    for(auto p: prices) {
+        test_price(st1, p);
+    }
+    const AMMState st2(1e6, Prices({1, 10}));
+    for(auto p: prices) {
+        test_price(st2, p);
+    }
+}
+
 // D is linear in token amount
 TEST_P(CurveTest, DIsLinear) {
     const Curve& curve = *GetParam();

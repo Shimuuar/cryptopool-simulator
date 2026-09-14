@@ -8,11 +8,28 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
     import importlib
-    from sympy import solve,sqrt,log,exp,oo,cosh,sinh,cbrt,Rational,Eq,Symbol,symbols
+    from graphlib import TopologicalSorter
+    from sympy import solve,sqrt,log,exp,oo,cosh,sinh,cbrt,Rational,Eq,Symbol,symbols,Expr
+    from sympy.codegen.ast import Assignment,Declaration
+    from sympy.codegen.rewriting import create_expand_pow_optimization
     import sympy
     import numpy as np
     import matplotlib.pyplot as plt
-    return Eq, cbrt, mo, solve, sqrt, symbols
+    return (
+        Assignment,
+        Declaration,
+        Eq,
+        Expr,
+        Symbol,
+        TopologicalSorter,
+        cbrt,
+        create_expand_pow_optimization,
+        mo,
+        solve,
+        sqrt,
+        symbols,
+        sympy,
+    )
 
 
 @app.cell(hide_code=True)
@@ -32,7 +49,7 @@ def _(symbols):
     A,B,D,P,x,x0,y,y0,s,Q = symbols('A B D P x x0 y y0 s Q', real=True, positive=True)
     p,q = symbols('p q', real=True)
     S,p_xy = symbols('S p_{xy}', real=True, positive=True)
-    return A, D, P, Q, S, p, p_xy, q, s, x, y, y0
+    return A, D, Q, S, p, p_xy, q, s, x, y
 
 
 @app.cell
@@ -240,87 +257,151 @@ def _(mo):
         r"""
     # Solving $x$, $y$ for $D$ and price
 
-    In similar way we can make substitution and eliminate trivial dependency on $D$:
+    We know expression for price:
 
-    $$ x = \bar{x}D
-    \qquad
-    y = \bar{y}D
+    $$P = \frac{\partial J/\partial y}{\partial J/\partial x}$$
+
+    Unfortunately we can't solve following system symbolically
+
+    $$
+    \left\{\begin{aligned}
+    J(x/D, y/D) &= 0 \\
+    P(x,y) &= P_0
+    \end{aligned}\right.
+    $$
+
+    so we will fall to solving equation numerically. We arbitrarily pick $x$ as independent variable:
+
+    $$P(x, y(x)) = P_0 $$
+
+    For using Newton's method we need to compute:
+
+    $$
+    \frac{dP}{dx}
+    = \frac{\partial P}{\partial x} + \frac{\partial P}{\partial y}\frac{dy}{dx}
+    = \frac{\partial P}{\partial x} - \frac{1}{P}\frac{\partial P}{\partial y}
     $$
     """
     )
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""Expression for price is simpler for `eq_D0`""")
+    return
+
+
 @app.cell
-def _(D, eq_D, x, y):
-    price = (eq_D.diff(y) / eq_D.diff(x)).subs({x:x*D, y:y*D}).simplify()
+def _(eq_D0, x, y):
+    price = (eq_D0.diff(y) / eq_D0.diff(x)).simplify()
     price
     return (price,)
 
 
 @app.cell
-def _(D, eq_D, x, y):
-    eq_x_P = (
-        eq_D.subs({x:x*D, y:y*D}) / (-D**3)
-    ).expand()
-    eq_x_P
-    return (eq_x_P,)
+def _(price, x, y):
+    dP_dx = price.diff(x) - 1/price * price.diff(y)
+    dP_dx = dP_dx.simplify().factor()
+    dP_dx
+    return (dP_dx,)
 
 
 @app.cell
-def _(P, price):
-    _num, _denom = price.as_numer_denom()
-    eq_price = (_num - P*_denom).expand()
-    eq_price
-    return (eq_price,)
+def _(Expr, Symbol, sympy):
+    def cse_dict(dct: dict[Symbol, Expr]) -> dict[Symbol, Expr]:
+        """
+        Perform CSE on RHS of dictionary and return new dictionary
+        """
+        new,rhs = sympy.cse(list(dct.values()))
+        r = {k:v for k,v in zip(dct, rhs)}
+        for k,v in new:
+            r[k] = v
+        return r
+    return (cse_dict,)
 
 
 @app.cell
-def _(Q, eq_x_P, s, x, y):
-    (eq_x_P.subs({x: s/Q, y:s*Q}) * Q).expand().collect(Q)
+def _(
+    Assignment,
+    Expr,
+    Symbol,
+    TopologicalSorter,
+    create_expand_pow_optimization,
+    sympy,
+):
+    def codegen_c(dct:      dict[Symbol,Expr], 
+                  declared: list[Symbol]|None = None, 
+                  indent:   int = 0
+                 ) -> str:
+        dct = {sym: sympy.sympify(expr) for sym, expr in dct.items()}    
+        # Sort expressions in dependency order. Cycles throw erros
+        deps: dict[Symbol, set[Symbol]] = {
+            sym: {s for s in expr.free_symbols if s in dct}
+            for sym, expr in dct.items()
+        }
+        ordered    = TopologicalSorter(deps).static_order()
+        expand_opt = create_expand_pow_optimization(4)
+        code = [
+            ' '*indent + row
+            for sym in ordered
+            for row in [
+                ('' if declared is not None and sym in declared else 'const money ') + 
+                sympy.ccode(Assignment(sym, expand_opt(dct[sym])))
+            ]
+        ]
+        return '\n'.join(code)
+    return (codegen_c,)
+
+
+@app.cell
+def _(symbols):
+    D3 = symbols('D3')
+    return (D3,)
+
+
+@app.cell
+def _(D, D3, dP_dx):
+    dP_dx.subs(D**3, D3)
     return
 
 
 @app.cell
-def _(Q, eq_price, s, x, y):
-    (eq_price.subs({x: s/Q, y:s*Q}) * Q**2).expand()
+def _(D, D3, Symbol, cse_dict, dP_dx):
+    dpdx_cse = cse_dict({
+        Symbol('dP_dx'): dP_dx.subs(D**3, D3),
+        D3: D**3,
+    })
+    return (dpdx_cse,)
+
+
+@app.cell
+def _(dpdx_cse):
+    dpdx_cse
     return
 
 
 @app.cell
-def _(mo):
-    mo.md(r"""Let take slighlty roundabout way""")
+def _(Symbol, codegen_c, dpdx_cse):
+    print(codegen_c(dpdx_cse,
+                    declared = [Symbol('dP_dx')],
+                    indent   = 12,
+                   ))
     return
 
 
 @app.cell
-def _(eq_x_P):
-    eq_x_P
+def _(Declaration):
+    ttt = Declaration('z')
+    #ttt.type = 'int'
+    ttt.args[0].type = 'int'
+    ttt
     return
 
 
 @app.cell
-def _(P, eq_x_P, x, y, y0):
-    eq_Y = eq_x_P.subs(x, (y0-y)*P).expand().collect(y)
-    eq_Y
-    return (eq_Y,)
-
-
-@app.cell
-def _(eq_Y, y):
-    eq_Y.coeff(y, 3).factor()
-    return
-
-
-@app.cell
-def _(eq_Y, y, y0):
-    def _discr():
-        a = eq_Y.coeff(y, 3)
-        b = eq_Y.coeff(y, 2)
-        c = eq_Y.coeff(y, 1)
-        d = eq_Y.coeff(y, 0)
-        return 18*a*b*c*d - 4*b**3 * d + b**2 * c**2 - 4*a*c**3 - 27*a**2*d**2
-    _discr().expand().collect(y0)
+def _(Symbol):
+    [Symbol('dP_dx')]
     return
 
 
