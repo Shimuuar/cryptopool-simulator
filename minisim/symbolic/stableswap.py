@@ -255,6 +255,25 @@ def _(eq_x, sqrt, x):
 def _(mo):
     mo.md(
         r"""
+    This is bad solution since for large $y$ we get catastrophic cancellation of form:
+
+    $$\sqrt{x^2 + b} - x$$
+
+    standard trick is conjugate multiplication:
+
+    $$
+    \frac{(\sqrt{x^2 + b} - x)(\sqrt{x^2 + b} + x)}{\sqrt{x^2 + b} + x}
+    = \frac{b}{\sqrt{x^2 + b} + x}
+    $$
+    """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
     # Solving $x$, $y$ for $D$ and price
 
     We know expression for price:

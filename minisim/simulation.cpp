@@ -62,26 +62,11 @@ static money newton_D_2(money A, const TokensXP &xx, money D0) {
 }
 
 static money newton_y(money A, const TokensXP& x, money D, int i) {
-    // ***
-    // This now uses stableswap invariant (because invariants are pluggable)
-    // ***
-    constexpr int N = 2;
-    A = A * N;
-    int other = 1 - i;
-    money c = D*D / (x[other] * N);
-    c = c * D / (A * N);
-    money b = x[other] + D / A - D;
-    money y_prev = 0;
-    money y = D;
-    for (size_t k = 0; k < 255; k++) {
-        y_prev = y;
-        y = (y*y + c) / (2 * y + b);
-        if (mabs(y - y_prev) <= 1e-12L) {
-            return y;
-        }
-    }
-    return y;  // XXX
-    throw std::logic_error("Did not converge");
+    const money y = x[1-i] / D;
+    //
+    const money b  = A / (2*y);
+    const money Ay = A*y - A + 0.5;
+    return D * b / (sqrtl(Ay*Ay + b) + Ay) / 2 / A;
 }
 
 static money get_p_2(const TokensXP& x, money D, money A) {
