@@ -21,6 +21,12 @@ static inline money mabs(money val) noexcept {
     return val >= 0 ? val : -val;
 }
 
+bool Curve::computeXforPFee(const AMMState& st, money P, const Fee& fee, TokensXP& x) const {
+    computeXforP(st, P, x);
+    return true;
+}
+
+
 // ----------------------------------------------------------------
 // -- Curve
 // ----------------------------------------------------------------
