@@ -17,7 +17,6 @@ def _():
     import matplotlib.pyplot as plt
     return (
         Assignment,
-        Declaration,
         Eq,
         Expr,
         Symbol,
@@ -322,14 +321,7 @@ def _(Expr, Symbol, sympy):
 
 
 @app.cell
-def _(
-    Assignment,
-    Expr,
-    Symbol,
-    TopologicalSorter,
-    create_expand_pow_optimization,
-    sympy,
-):
+def _(Assignment, Expr, Symbol, TopologicalSorter, sympy):
     def codegen_c(dct:      dict[Symbol,Expr], 
                   declared: list[Symbol]|None = None, 
                   indent:   int = 0
@@ -340,14 +332,13 @@ def _(
             sym: {s for s in expr.free_symbols if s in dct}
             for sym, expr in dct.items()
         }
-        ordered    = TopologicalSorter(deps).static_order()
-        expand_opt = create_expand_pow_optimization(4)
-        code = [
+        ordered = TopologicalSorter(deps).static_order()
+        code    = [
             ' '*indent + row
             for sym in ordered
             for row in [
                 ('' if declared is not None and sym in declared else 'const money ') + 
-                sympy.ccode(Assignment(sym, expand_opt(dct[sym])))
+                sympy.ccode(Assignment(sym, (dct[sym])))
             ]
         ]
         return '\n'.join(code)
@@ -355,23 +346,19 @@ def _(
 
 
 @app.cell
-def _(symbols):
-    D3 = symbols('D3')
-    return (D3,)
-
-
-@app.cell
-def _(D, D3, dP_dx):
-    dP_dx.subs(D**3, D3)
+def _():
+    #for arg in sympy.preorder_traversal(create_expand_pow_optimization(6)(dP_dx)):
+    #    print(type(arg), arg)
     return
 
 
 @app.cell
-def _(D, D3, Symbol, cse_dict, dP_dx):
-    dpdx_cse = cse_dict({
-        Symbol('dP_dx'): dP_dx.subs(D**3, D3),
-        D3: D**3,
-    })
+def _(Symbol, create_expand_pow_optimization, cse_dict, dP_dx):
+    dpdx_cse = cse_dict(cse_dict({
+    
+        Symbol('dP_dx'): create_expand_pow_optimization(6)(dP_dx),
+        #D3: D**3,
+    }))
     return (dpdx_cse,)
 
 
@@ -387,21 +374,6 @@ def _(Symbol, codegen_c, dpdx_cse):
                     declared = [Symbol('dP_dx')],
                     indent   = 12,
                    ))
-    return
-
-
-@app.cell
-def _(Declaration):
-    ttt = Declaration('z')
-    #ttt.type = 'int'
-    ttt.args[0].type = 'int'
-    ttt
-    return
-
-
-@app.cell
-def _(Symbol):
-    [Symbol('dP_dx')]
     return
 
 
