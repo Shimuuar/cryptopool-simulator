@@ -16,6 +16,8 @@ static money finiteDiffPrice(const Curve& curve, const AMMState& st, const money
     return (2*h) / (st_lo.xs[1] - st_hi.xs[1]);
 }
 
+
+// Test that we correctly solve y(D,x), e.g. on-curve trade.
 TEST_P(CurveTest, OnCurveTrade) {
     const Curve& curve = *GetParam();
     // Initial state
@@ -23,40 +25,41 @@ TEST_P(CurveTest, OnCurveTrade) {
     const money    D0 = curve.computeD(st0);
     const int n1 = 0;
     const int n2 = 1;
-    // ----------------------------------------
-    // On-curve trade must preserve invariant
-    {
+    // We hardcode change for token amount in range 1e-2 .. 1e2
+    money scale[] = {
+        1.00000000e-02, 1.20679264e-02, 1.45634848e-02, 1.75751062e-02,
+        2.12095089e-02, 2.55954792e-02, 3.08884360e-02, 3.72759372e-02,
+        4.49843267e-02, 5.42867544e-02, 6.55128557e-02, 7.90604321e-02,
+        9.54095476e-02, 1.15139540e-01, 1.38949549e-01, 1.67683294e-01,
+        2.02358965e-01, 2.44205309e-01, 2.94705170e-01, 3.55648031e-01,
+        4.29193426e-01, 5.17947468e-01, 6.25055193e-01, 7.54312006e-01,
+        9.10298178e-01, 1.09854114e+00, 1.32571137e+00, 1.59985872e+00,
+        1.93069773e+00, 2.32995181e+00, 2.81176870e+00, 3.39322177e+00,
+        4.09491506e+00, 4.94171336e+00, 5.96362332e+00, 7.19685673e+00,
+        8.68511374e+00, 1.04811313e+01, 1.26485522e+01, 1.52641797e+01,
+        1.84206997e+01, 2.22299648e+01, 2.68269580e+01, 3.23745754e+01,
+        3.90693994e+01, 4.71486636e+01, 5.68986603e+01, 6.86648845e+01,
+        8.28642773e+01, 1.00000000e+02};
+    // Solve y(x,D) and check that invariant is preserved
+    for(auto s: scale) {
         AMMState st1 = st0;
-        st1.xs[n1] *= 1.01;
+        st1.xs[n1] *= s;
         st1.xs[n2] =  curve.computeY(st0, st1.xs[n1], n1, n2);
         const money D1 = curve.computeD(st1);
         EXPECT_NEAR(D0, D1, 1e-12L * D0);
     }
-    {
+    // Solve x(y,D) and check that invariant is preserved
+    for(auto s: scale) {
         AMMState st1 = st0;
-        st1.xs[n1] *= 0.99;
-        st1.xs[n2] =  curve.computeY(st0, st1.xs[n1], n1, n2);
-        const money D1 = curve.computeD(st1);
-        EXPECT_NEAR(D0, D1, 1e-12L * D0);
-    }
-    {
-        AMMState st1 = st0;
-        st1.xs[n2] *= 1.01;
-        st1.xs[n1] =  curve.computeY(st0, st1.xs[n2], n2, n1);
-        const money D1 = curve.computeD(st1);
-        EXPECT_NEAR(D0, D1, 1e-12L * D0);
-    }
-    {
-        AMMState st1 = st0;
-        st1.xs[n2] *= 0.99;
+        st1.xs[n2] *= s;
         st1.xs[n1] =  curve.computeY(st0, st1.xs[n2], n2, n1);
         const money D1 = curve.computeD(st1);
         EXPECT_NEAR(D0, D1, 1e-12L * D0);
     }
 }
 
+// X[cp] is correctly related to D
 TEST_P(CurveTest, Xcp) {
-    // X[cp] is correctly related to D
     const Curve& curve = *GetParam();
     //
     const AMMState st_xcp(1e6, Prices({0.1, 10}));
@@ -65,8 +68,8 @@ TEST_P(CurveTest, Xcp) {
     EXPECT_NEAR(D, 2*Xcp, 1e-12L * D);
 }
 
+// Check that price is estimated correctly using finite differences
 TEST_P(CurveTest, Price) {
-    // Check that price is estimated correctly using finite differences
     const Curve& curve = *GetParam();
     // In-equilibrium
     {
@@ -121,24 +124,27 @@ TEST_P(CurveTest, XForPrice) {
             << "st  = " << st  << std::endl
             << "P = " << P;
     };
-    //
-    money prices[] = {1.00000000e-02, 1.20679264e-02, 1.45634848e-02, 1.75751062e-02,
-       2.12095089e-02, 2.55954792e-02, 3.08884360e-02, 3.72759372e-02,
-       4.49843267e-02, 5.42867544e-02, 6.55128557e-02, 7.90604321e-02,
-       9.54095476e-02, 1.15139540e-01, 1.38949549e-01, 1.67683294e-01,
-       2.02358965e-01, 2.44205309e-01, 2.94705170e-01, 3.55648031e-01,
-       4.29193426e-01, 5.17947468e-01, 6.25055193e-01, 7.54312006e-01,
-       9.10298178e-01, 1.09854114e+00, 1.32571137e+00, 1.59985872e+00,
-       1.93069773e+00, 2.32995181e+00, 2.81176870e+00, 3.39322177e+00,
-       4.09491506e+00, 4.94171336e+00, 5.96362332e+00, 7.19685673e+00,
-       8.68511374e+00, 1.04811313e+01, 1.26485522e+01, 1.52641797e+01,
-       1.84206997e+01, 2.22299648e+01, 2.68269580e+01, 3.23745754e+01,
-       3.90693994e+01, 4.71486636e+01, 5.68986603e+01, 6.86648845e+01,
-       8.28642773e+01, 1.00000000e+02};
+    // We hardcode table of prices in range 1e-2 .. 1e2
+    money prices[] = {
+        1.00000000e-02, 1.20679264e-02, 1.45634848e-02, 1.75751062e-02,
+        2.12095089e-02, 2.55954792e-02, 3.08884360e-02, 3.72759372e-02,
+        4.49843267e-02, 5.42867544e-02, 6.55128557e-02, 7.90604321e-02,
+        9.54095476e-02, 1.15139540e-01, 1.38949549e-01, 1.67683294e-01,
+        2.02358965e-01, 2.44205309e-01, 2.94705170e-01, 3.55648031e-01,
+        4.29193426e-01, 5.17947468e-01, 6.25055193e-01, 7.54312006e-01,
+        9.10298178e-01, 1.09854114e+00, 1.32571137e+00, 1.59985872e+00,
+        1.93069773e+00, 2.32995181e+00, 2.81176870e+00, 3.39322177e+00,
+        4.09491506e+00, 4.94171336e+00, 5.96362332e+00, 7.19685673e+00,
+        8.68511374e+00, 1.04811313e+01, 1.26485522e+01, 1.52641797e+01,
+        1.84206997e+01, 2.22299648e+01, 2.68269580e+01, 3.23745754e+01,
+        3.90693994e+01, 4.71486636e+01, 5.68986603e+01, 6.86648845e+01,
+        8.28642773e+01, 1.00000000e+02};
+    // Trivial price scale
     const AMMState st1(1e6, Prices({1, 1} ));
     for(auto p: prices) {
         test_price(st1, p);
     }
+    // Nontrivial price scale
     const AMMState st2(1e6, Prices({1, 10}));
     for(auto p: prices) {
         test_price(st2, p);
@@ -178,11 +184,13 @@ namespace {
     ConstantProduct constant_prod;
 }
 
-INSTANTIATE_TEST_SUITE_P(Minisim, CurveTest,
-                         ::testing::Values(&stableswap_1,
-                                           &stableswap_2,
-                                           &constant_prod
-                             ));
+INSTANTIATE_TEST_SUITE_P(
+    Minisim,
+    CurveTest,
+    ::testing::Values(&stableswap_1,
+                      &stableswap_2,
+                      &constant_prod
+        ));
 
 
 
