@@ -125,11 +125,12 @@ money Stableswap::computeY(const AMMState& st, money x, int i, int j) const {
 
 void Stableswap::computeXforP(const AMMState& st, const money P, TokensXP& xp) const {
     const money D = computeD(st);
-    // We solve equation for X using newton's method And we pick state
-    // st as initial approximation. It certainly have correct
+    // We solve equation for X using Newton's method and we pick state
+    // `st' as initial approximation. It certainly have correct
     // invariant.
     //
-    // This is bracket for root. Negative values means we don't know.
+    // We also must bracket root otherwise Newton step may drive us
+    // into negative x.
     money x_low = 0;
     money x_hi  = 1.0 / 0.0;
     auto update_bracket = [&](money dP){
@@ -144,7 +145,8 @@ void Stableswap::computeXforP(const AMMState& st, const money P, TokensXP& xp) c
     money dP = get_p_2(xp, D, A) - P;
     update_bracket(dP);
     for(int i = 0; i < 100; i++) {
-        // Computation of dP/dx is made performed using sympy in stableswap.py
+        // Computation of dP/dx is done symboliclly using sympy in
+        // stableswap.py
         //
         // Sadly sympy is not very good at CSE with powers
         money dP_dx;
@@ -160,7 +162,8 @@ void Stableswap::computeXforP(const AMMState& st, const money P, TokensXP& xp) c
             const money x4 = x1*x3*y;
             dP_dx = 2*D3*1.0/y*(D3*x2 + D3*x4 + x0*x5*(x*x*x*x) + x3*x5*(y*y*y*y) - x5*x*x*x*y*y*y + D3*D3)/((D3 + x2)*pow(D3 + x4, 2));
         }
-        // Compute new estimate for X
+        // Compute new estimate for X and revert to bisection if
+        // Newton step bings us out of bracket
         xp.x[0] = x - dP / dP_dx;
         if( xp.x[0] < x_low ) {
             xp.x[0] = (x + x_low) / 2;

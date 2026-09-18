@@ -148,10 +148,7 @@ money step_for_price_2(
 class Curve : public Factory<Curve> {
 public:
     virtual ~Curve() = default;
-    // Compute value of x[j] for given x[i] leaving invariant constant.
-    virtual money computeY(const AMMState& st, money x, int i, int j) const = 0;
-    // Compute value of tokens for given price (reduced by price scale). 
-    virtual void computeXforP(const AMMState& st, money P, TokensXP& x) const = 0;
+
     // Compute relative price for given AMM state. It uses token
     // reduced by price scale.
     virtual money computeP(const AMMState& st) const = 0;
@@ -164,6 +161,13 @@ public:
     virtual money computeXcp(const AMMState& st) const = 0;
     // Compute value of invariant D
     virtual money computeD(const AMMState& st) const = 0;
+
+
+    // Compute value of x[j] for given x[i] leaving invariant constant.
+    virtual money computeY(const AMMState& st, money x, int i, int j) const = 0;
+    // Find AMM state with given price (reduced by price scale) while
+    // maintaining invarian (on curve trade).
+    virtual void computeXforP(const AMMState& st, money P, TokensXP& x) const = 0;
 };
 
 
