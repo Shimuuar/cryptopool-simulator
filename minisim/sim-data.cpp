@@ -57,6 +57,40 @@ namespace {
 }
 
 
+// Parse a price/volume field, which may be a decimal string
+// (e.g. "3984.00000000") or a raw JSON number.
+static money parse_money(simdjson::dom::element field, const char* what) {
+    simdjson::error_code err;
+    switch( field.type() ) {
+    case simdjson::dom::element_type::STRING: {
+        std::string_view s;
+        err = field.get_string().get(s);
+        if( err ) {
+            throw std::runtime_error(std::string("Invalid string field ") + what);
+        }
+        double d = 0;
+        auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), d);
+        if( ec != std::errc() || ptr != s.data() + s.size() ) {
+            throw std::runtime_error(
+                "Invalid number '"+std::string(s)+"' for field "+what);
+        }
+        return d;
+    }
+    case simdjson::dom::element_type::DOUBLE: // Fallthough
+    case simdjson::dom::element_type::UINT64: // Fallthough
+    case simdjson::dom::element_type::INT64: {
+        double v = 0;
+        err = field.get_double().get(v);
+        if( err ) {
+            throw std::runtime_error(std::string("Invalid number field ") + what);
+        }
+        return v;
+    }
+    default:
+        throw std::runtime_error(std::string("Field ") + what + " is not a number");
+    }
+}
+
 std::vector<OHLC> read_binance_data(std::string const &fname) {
     auto start_time = get_thread_time();
     printf("parsing %s\n", fname.c_str());
@@ -86,53 +120,9 @@ std::vector<OHLC> read_binance_data(std::string const &fname) {
     ret.reserve(records.size()); // exact count while it is below 2^24
 
     // Prices/volumes are stored as decimal strings (e.g. "3984.00000000").
-    // Parse them at double precision (like the historical atof()-based
-    // parser did) and widen to money; fall back to raw JSON numbers.
-    auto parse_money = [](simdjson::dom::element field, const char* what) -> money {
-        simdjson::error_code err;
-        switch( field.type() ) {
-        case simdjson::dom::element_type::STRING: {
-            std::string_view s;
-            err = field.get_string().get(s);
-            if( err ) {
-                throw std::runtime_error(std::string("Invalid string field ") + what);
-            }
-            double d = 0;
-            auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), d);
-            if( ec != std::errc() || ptr != s.data() + s.size() ) {
-                throw std::runtime_error(
-                    "Invalid number '"+std::string(s)+"' for field "+what);
-            }
-            return d;
-        }
-        case simdjson::dom::element_type::DOUBLE: {
-            double d = 0;
-            err = field.get_double().get(d);
-            if( err ) {
-                throw std::runtime_error(std::string("Invalid number field ") + what);
-            }
-            return d;
-        }
-        case simdjson::dom::element_type::UINT64: {
-            uint64_t v = 0;
-            err = field.get_uint64().get(v);
-            if( err ) {
-                throw std::runtime_error(std::string("Invalid number field ") + what);
-            }
-            return (money)v;
-        }
-        case simdjson::dom::element_type::INT64: {
-            int64_t v = 0;
-            err = field.get_int64().get(v);
-            if( err ) {
-                throw std::runtime_error(std::string("Invalid number field ") + what);
-            }
-            return (money)v;
-        }
-        default:
-            throw std::runtime_error(std::string("Field ") + what + " is not a number");
-        }
-    };
+    // parse_money() parses them at double precision (like the historical
+    // atof()-based parser did) and widens to money; it also handles raw
+    // JSON numbers.
 
     // Each record: [time, open, high, low, close, volume, ...]
     for( simdjson::dom::element record : records ) {
