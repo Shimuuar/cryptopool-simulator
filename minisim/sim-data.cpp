@@ -29,11 +29,11 @@ namespace {
         // Size of file
         size_t size() const { return m_size; }
         // Underlying buffer
-        const unsigned char* buffer() const { return m_ptr; }
+        const char* buffer() const { return m_ptr; }
     private:
-        int            m_fd;
-        unsigned char *m_ptr;
-        size_t         m_size;
+        int    m_fd;
+        char  *m_ptr;
+        size_t m_size;
     };
 
     MMappedFile::MMappedFile(const char* name) {
@@ -43,7 +43,7 @@ namespace {
         }
         lseek(m_fd, 0, SEEK_END);
         m_size = lseek(m_fd, 0, SEEK_CUR);
-        m_ptr  = (unsigned char*)::mmap(
+        m_ptr  = (char*)::mmap(
             nullptr, m_size, PROT_READ, MAP_NOCACHE|MAP_FILE|MAP_SHARED, m_fd, 0);
         if( m_ptr == MAP_FAILED) {
             throw std::runtime_error("mmap failed");
@@ -69,7 +69,7 @@ std::vector<OHLC> read_binance_data(std::string const &fname) {
     simdjson::dom::parser parser;
     simdjson::dom::element root;
     simdjson::error_code err =
-        parser.parse(reinterpret_cast<const char*>(mf.buffer()), mf.size()).get(root);
+        parser.parse(mf.buffer(), mf.size()).get(root);
     if( err ) {
         throw std::runtime_error("Failed to parse JSON in '"+fname+"': " +simdjson::error_message(err));
     }
