@@ -91,6 +91,20 @@ static money parse_money(simdjson::dom::element field, const char* what) {
     }
 }
 
+// Parse timestamp in JSON
+static uint64_t parse_time(simdjson::dom::element field) {
+    uint64_t t = 0;
+    simdjson::error_code err = field.get_uint64().get(t);
+    if( err ) {
+        throw std::runtime_error(
+            std::string(std::string("Invalid time field: ") + simdjson::error_message(err)));
+    }
+    if( t > 10000000000ull ) {
+        t /= 1000; // ms -> s
+    }
+    return t;
+}
+
 std::vector<OHLC> read_binance_data(std::string const &fname) {
     auto start_time = get_thread_time();
     printf("parsing %s\n", fname.c_str());
@@ -138,20 +152,7 @@ std::vector<OHLC> read_binance_data(std::string const &fname) {
         int idx = 0;
         for( simdjson::dom::element field : fields ) {
             switch( idx ) {
-            case 0: { // open time, in milliseconds
-                uint64_t t = 0;
-                err = field.get_uint64().get(t);
-                if( err ) {
-                    throw std::runtime_error(
-                        std::string("Invalid time in '") + fname + "': " +
-                        simdjson::error_message(err));
-                }
-                if( t > 10000000000ull ) {
-                    t /= 1000; // ms -> s
-                }
-                d.t = t;
-                break;
-            }
+            case 0: d.t      = parse_time(field);            break;
             case 1: d.open   = parse_money(field, "open");   break;
             case 2: d.high   = parse_money(field, "high");   break;
             case 3: d.low    = parse_money(field, "low");    break;
