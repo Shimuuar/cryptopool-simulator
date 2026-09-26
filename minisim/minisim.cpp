@@ -41,10 +41,16 @@ std::unique_ptr<TradeDataArray> get_all(const JSON &jin, int last_elems) {
         std::string name = data["file"];
         printf("using Binance JSON file '%s'\n", name.c_str());
         return make_binance_data(name, last_elems);
+        //----
     } else if( source == "mmap" ) {
         std::string name = data["file"];
         printf("using mmaped data '%s'\n", name.c_str());
         return make_mmaped_data(name);
+        //----
+    } else if( source == "time_series" ) {
+        std::string name = data["file"];
+        printf("using Binance JSON file '%s'\n", name.c_str());
+        return make_time_series(name);
     }
     throw std::runtime_error("Unknow data source");
 }

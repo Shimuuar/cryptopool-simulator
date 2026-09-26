@@ -107,13 +107,9 @@ static uint64_t parse_time(simdjson::dom::element field) {
 
 std::vector<OHLC> read_binance_data(std::string const &fname) {
     auto start_time = get_thread_time();
-    printf("parsing %s\n", fname.c_str());
+    printf("Parsing Binance data: %s\n", fname.c_str());
     MMappedFile mf( fname );
 
-    // Parse the mmap'ed buffer with simdjson.  mmap'ed data has no
-    // SIMDJSON_PADDING bytes at the end, so the parser copies it into
-    // its own internal padded buffer (realloc_if_needed defaults to
-    // true) and the resulting DOM stays valid until `parser` dies.
     simdjson::dom::parser parser;
     simdjson::dom::element root;
     simdjson::error_code err =
@@ -263,6 +259,63 @@ std::unique_ptr<TradeDataArray> make_binance_data(const std::string& fname, int 
     return std::unique_ptr<TradeDataArray>( preprocessOHLC(all_trades, last_elem) );
 }
 
+std::unique_ptr<TradeDataArray> make_time_series(const std::string& fname) {
+    std::vector<price_point> dat;
+    //
+    auto start_time = get_thread_time();
+    printf("Parsing time series data: %s\n", fname.c_str());
+    MMappedFile mf( fname );
+
+    simdjson::dom::parser parser;
+    simdjson::dom::element root;
+    simdjson::error_code err =
+        parser.parse(mf.buffer(), mf.size()).get(root);
+    if( err ) {
+        throw std::runtime_error("Failed to parse JSON in '"+fname+"': " +simdjson::error_message(err));
+    }
+    //
+    simdjson::dom::array records;
+    err = root.get_array().get(records);
+    if( err ) {
+        throw std::runtime_error(
+            "JSON in '" + fname + "' is not an array of records: " +
+            simdjson::error_message(err));
+    }
+    dat.reserve(records.size()); // exact count while it is below 2^24
+    //
+    for( simdjson::dom::element record : records ) {
+        simdjson::dom::array fields;
+        err = record.get_array().get(fields);
+        if( err ) {
+            throw std::runtime_error(
+                std::string("Record in '") + fname + "' is not an array: " +
+                simdjson::error_message(err));
+        }
+
+        price_point d;
+        int idx = 0;
+        for( simdjson::dom::element field : fields ) {
+            switch( idx ) {
+            case 0: d.t      = parse_time(field);            break;
+            case 1: d.price  = parse_money(field, "price");  break;
+            case 2: d.volume = parse_money(field, "volume"); break;
+            default: break; // rest of the record is irrelevant
+            }
+            ++idx;
+        }
+        if( idx < 2 ) {
+            throw std::runtime_error(
+                std::string("Short record in '") + fname + "': expected 3 fields, got " +
+                std::to_string(idx));
+        }
+        dat.push_back(d);
+    }
+    //
+    auto end_time = get_thread_time();
+    printf("%s: load %zu elements\n", fname.c_str(), dat.size());
+    print_clock("parsing took", start_time, end_time);
+    return std::unique_ptr<TradeDataArray>(new TradeDataVector(std::move(dat)));
+}
 
 // ----------------------------------------------------------------
 // MMAP'ed data

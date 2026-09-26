@@ -48,6 +48,8 @@ std::unique_ptr<TradeDataArray> make_mmaped_data(const std::string& fname);
 // Read data from Binance JSON files 
 std::unique_ptr<TradeDataArray> make_binance_data(const std::string& fname, int last_elem);
 
+// Read data from JSON file with fimple time series of [time,price,volume]
+std::unique_ptr<TradeDataArray> make_time_series(const std::string& fname);
 
 
 
