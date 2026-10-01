@@ -21,9 +21,19 @@ static inline money mabs(money val) noexcept {
     return val >= 0 ? val : -val;
 }
 
-bool Curve::computeXforPFee(const AMMState& st, money P, const Fee& fee, TokensXP& x) const {
+bool Curve::computeXforPFee(const AMMState& st, money P, const Fee& fee_model, TokensXP& x) const {
     computeXforP(st, P, x);
-    return true;
+    // Fee and price at initial point
+    money P0   = computeP(st);
+    money fee0 = fee_model.computeFee(st);
+    if( P > P0 / (1 - fee0) ) {
+        computeXforP(st, P * (1-fee0), x);
+        return true;
+    } else if ( P < P0*(1 - fee0) ) {
+        computeXforP(st, P / (1-fee0), x);
+        return true;
+    }
+    return false;
 }
 
 

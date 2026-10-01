@@ -149,7 +149,7 @@ TEST_P(CurveTest, XForPrice_ZeroFee) {
     FlatFee zero_fee(0, 0);
     auto test_price = [&](const AMMState& st0, money P) {
         TokensXP x;
-        curve.computeXforPFee(st0, P, zero_fee, x);
+        EXPECT_TRUE( curve.computeXforPFee(st0, P, zero_fee, x) );
         AMMState st = st0;
         st.xs[0] = x[0] / st.price[0];
         st.xs[1] = x[1] / st.price[1];
@@ -168,6 +168,61 @@ TEST_P(CurveTest, XForPrice_ZeroFee) {
     };
     // Trivial price scale
     const AMMState st1(1e6, Prices({1, 1} ));
+    for(auto price: logspace_100) {
+        test_price(st1, price);
+    }
+    // Nontrivial price scale
+    const AMMState st2(1e6, Prices({1, 10}));
+    for(auto price: logspace_100) {
+        test_price(st2, price);
+    }
+}
+
+
+
+// When we solve for price with zero fee computeXforPFee works
+// identically to computeXforP
+TEST_P(CurveTest, XForPrice_ConstFee) {
+    const Curve& curve = *GetParam();
+    //
+    FlatFee fee_model(0.05, 0);
+    auto test_price = [&](const AMMState& st0, money P) {
+        TokensXP xp;
+        //
+        money fee0 = fee_model.computeFee(st0);
+        money P0   = curve.computeP(st0);
+        if( P>P0*(1-fee0) && P<P0/(1-fee0) ) {
+            EXPECT_FALSE( curve.computeXforPFee(st0, P, fee_model, xp ) );
+        } else {
+            ASSERT_TRUE( curve.computeXforPFee(st0, P, fee_model, xp) );
+            AMMState st = st0;
+            st.xs[0] = xp[0] / st.price[0];
+            st.xs[1] = xp[1] / st.price[1];
+            money D0 = curve.computeD(st0);
+            money D  = curve.computeD(st);
+            // New state conserves invariant
+            EXPECT_NEAR(D0, D, 1e-12*D0)
+                << "D is conserved" << std::endl
+                << "st0 = " << st0 << std::endl
+                << "st  = " << st  << std::endl
+                << "P   = " << P;
+            // Marginal price including fee must match price we're solving for
+            money P0     = curve.computeP(st0);
+            money P_AMM  = curve.computeP(st);
+            money fee    = fee_model.computeFee(st);
+            money P_marg = P_AMM > P0 ? P_AMM / (1-fee) : P_AMM * (1-fee);
+            EXPECT_NEAR(P_marg, P, 1e-12*P)
+                << "P is correct" << std::endl
+                << "st0     = " << st0     << std::endl
+                << "st      = " << st      << std::endl
+                << "P[0]    = " << P0      << std::endl
+                << "P[AMM]  = " << P_AMM   << std::endl
+                << "P[marg] = " << P_marg  << std::endl
+                ;
+        }
+    };
+    // Trivial price scale
+    const AMMState st1(1e6, Prices({1, 10} ));
     for(auto price: logspace_100) {
         test_price(st1, price);
     }
@@ -203,7 +258,7 @@ TEST_P(CurveTest, DIsSymmetric) {
     const money D1 = curve.computeD(st1);
     const money D2 = curve.computeD(st2);
     EXPECT_NEAR(D1, D2, 1e-12L * D1);
-    
+
 }
 
 namespace {
