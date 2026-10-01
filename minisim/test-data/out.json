@@ -4,13 +4,13 @@
             "D": 20000000.0,
             "Result": {
                 "APR_geo_mean": 0.0,
-                "APY": 0.07523723026822374,
-                "APY_boost": 0.058170337299663866,
+                "APY": 0.07703127155087522,
+                "APY_boost": 0.05993590234498812,
                 "imbalance": 0.0,
-                "imbalance_integral": 0.021953019206306313,
-                "liq_density": 5.929286066452281,
-                "slippage": 0.16966085988096508,
-                "volume": 3.9482102972716557
+                "imbalance_integral": 0.025196617951621737,
+                "liq_density": 5.909931634911726,
+                "slippage": 0.17040053290297996,
+                "volume": 3.974573654850094
             },
             "adjustment_step": 0.005,
             "allowed_extra_profit": 1e-10,

@@ -228,32 +228,21 @@ void Trader::simulate(const TradeDataArray *test_data,
 
         // Attempt to make arbitrage trade
         {
-            Trade trade;                  // On-curve trade
-            bool  trade_happened = false; // Flag to check that trade should happen
-
-            // Check whether trade in either direction is possible.
-            const money ext_vol = money(d.volume * oracle.price[b]); //  <- now all is in USD
-            const money max_price = d.price * (1 - ext_fee);
-            const money min_price = d.price * (1 + ext_fee);
-            if ((max_price != 0) & (max_price > state.price)) {
-                // External Y price is higher. AMM will buy X from and
-                // sell Y to arbitrageurs
-                auto step = step_for_price_2(state.amm, 0, max_price, ext_vol, *curve, *fee_model, gas_fee, dx);
-                if (step > 0) {
-                    trade_happened = true;
-                    trade = Trade(step, a, b, state.amm, *curve);
+            AMMState st_after; // State after on-curve trade 
+            bool arb_trade = curve->computeStateForPriceFee(state.amm, d.price, *fee_model, st_after, ext_fee);
+            if( arb_trade ) {
+                Trade trade(state.amm, st_after);
+                // Check that we aren't volume limited.
+                const money ext_vol = money(d.volume * oracle.price[b]); //  <- now all is in USD
+                if( trade.amountFor(0) > ext_vol ) {
+                    if( d.price > state.price ) {
+                        // Buy X, sell Y
+                        trade = Trade(ext_vol, 0, 1, state.amm, *curve);
+                    } else {
+                        // Buy Y, sell X
+                        trade = Trade(d.volume, 1, 0, state.amm, *curve);
+                    }
                 }
-            } else if((min_price != 0) && (min_price < state.price)) {
-                // External Y price is lower. AMM will buy Y from and
-                // sell X to arbitrageurs
-                auto step = step_for_price_2(state.amm, min_price, 0, ext_vol, *curve, *fee_model, gas_fee, dx);
-                if (step > 0) {
-                    trade_happened = true;
-                    trade = Trade(step, b, a, state.amm, *curve);
-                }
-            }
-            if( trade_happened ) {
-                // Apply fee and make trade
                 Trade        trade_fee   = trade.applyFee(fee_model->computeTradeFee(state.amm, trade));
                 FullAMMState state_trade = FullAMMState(state, trade_fee, *curve);
                 xcp_profit += (state_trade.xcp - state.xcp) / initial_state.xcp;
@@ -266,7 +255,6 @@ void Trader::simulate(const TradeDataArray *test_data,
                 state = state_price;
             }
         }
-
 
         // Boost with special donations to the pool
         money local_boost_rate = fee_model->localBoostRate(state.amm);
