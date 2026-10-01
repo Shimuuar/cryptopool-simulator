@@ -346,6 +346,22 @@ Trade::Trade(money           amount,
     sell   = amm.xs[i_sell] - curve.computeY(amm, amm.xs[i_buy] + buy, i_buy, i_sell);
 }
 
+Trade::Trade(const AMMState& from, const AMMState& to)
+{
+    if( to.xs[0] > from.xs[0] ) {
+        buy    = to.xs[0] - from.xs[0];
+        sell   = from.xs[1] - to.xs[1];
+        i_buy  = 0;
+        i_sell = 1;
+    } else {
+        buy    = to.xs[1] - from.xs[1];
+        sell   = from.xs[0] - to.xs[0];
+        i_buy  = 1;
+        i_sell = 0;
+    }
+}
+
+
 Trade Trade::applyFee(money fee) const {
     Trade t(*this);
     t.sell *= 1 - fee;

@@ -102,6 +102,8 @@ struct FullAMMState {
 // Single trade peformed by pool.
 struct Trade {
     Trade() = default;
+    // Trade between two points. Both traders assumed to be valid
+    Trade(const AMMState& from, const AMMState& to);
 
     // Construct trade on a curve.
     Trade(money           amount, // Token amount
