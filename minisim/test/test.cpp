@@ -111,45 +111,80 @@ TEST_P(CurveTest, Price) {
 }
 
 // Check that computation of state at given price is correct
-TEST_P(CurveTest, XForPrice) {
+TEST_P(CurveTest, XPForP) {
     const Curve& curve = *GetParam();
     //
-    auto test_price = [&](const AMMState& st0, money P) {
+    auto test_price = [&](const AMMState& st0, money P0) {
         TokensXP x;
-        curve.computeXPforP(st0, P, x);
+        curve.computeXPforP(st0, P0, x);
         AMMState st = st0;
         st.xs[0] = x[0] / st.price[0];
         st.xs[1] = x[1] / st.price[1];
         money D0 = curve.computeD(st0);
         money D  = curve.computeD(st);
+        money P  = curve.computeP(st);
         EXPECT_NEAR(D0, D, 1e-12*D0)
             << "D is conserved" << std::endl
             << "st0 = " << st0 << std::endl
             << "st  = " << st  << std::endl
-            << "P = " << P;
-        EXPECT_NEAR(curve.computeP(st), P, 1e-12*P)
+            << "P0  = " << P0  << std::endl
+            << "P   = " << P;
+        EXPECT_NEAR(P0, P, 1e-12*P0)
             << "P is correct" << std::endl
             << "st0 = " << st0 << std::endl
             << "st  = " << st  << std::endl
-            << "P = " << P;
+            << "P0  = " << P0  << std::endl
+            << "P   = " << P;
     };
     // Trivial price scale
     const AMMState st1(1e6, Prices({1, 1} ));
     for(auto price: logspace_100) {
         test_price(st1, price);
     }
-    test_price(st1, 1.0);
     // Nontrivial price scale
     const AMMState st2(1e6, Prices({1, 10}));
     for(auto price: logspace_100) {
         test_price(st2, price);
     }
-    test_price(st2, 1.0);
 }
 
+// Check that computation of state at given price is correct
+TEST_P(CurveTest, StateForPrice) {
+    const Curve& curve = *GetParam();
+    //
+    auto test_price = [&](const AMMState& st0, money P0) {
+        AMMState st;
+        curve.computeStateForPrice(st0, P0, st);
+        money D0 = curve.computeD(st0);
+        money D  = curve.computeD(st);
+        money P  = curve.computePrice(st);
+        EXPECT_NEAR(D0, D, 1e-12*D0)
+            << "D is conserved" << std::endl
+            << "st0 = " << st0 << std::endl
+            << "st  = " << st  << std::endl
+            << "P0  = " << P0  << std::endl
+            << "P   = " << P;
+        EXPECT_NEAR(curve.computePrice(st), P, 1e-12*P)
+            << "P is correct" << std::endl
+            << "st0 = " << st0 << std::endl
+            << "st  = " << st  << std::endl
+            << "P0  = " << P0  << std::endl
+            << "P   = " << P;
+    };
+    // Trivial price scale
+    const AMMState st1(1e6, Prices({1, 1} ));
+    for(auto price: logspace_100) {
+        test_price(st1, price);
+    }
+    // Nontrivial price scale
+    const AMMState st2(1e6, Prices({1, 10}));
+    for(auto price: logspace_100) {
+        test_price(st2, price);
+    }
+}
 
 // Test that we correctly solve state for a given price with fee
-TEST_P(CurveTestFee, XForPrice_Fee) {
+TEST_P(CurveTestFee, XPForP_Fee) {
     const std::tuple<Curve*, Fee*>& param = GetParam();
     //
     Curve &curve     = *(std::get<0>(param));
@@ -194,13 +229,65 @@ TEST_P(CurveTestFee, XForPrice_Fee) {
     for(auto price: logspace_100) {
         test_price(st1, price);
     }
+    // test_price(st1, 1);
     // Nontrivial price scale
     const AMMState st2(1e6, Prices({1, 10}));
     for(auto price: logspace_100) {
         test_price(st2, price);
     }
+    // test_price(st1, 1);
 }
 
+// Test that we correctly solve state for a given price with fee
+TEST_P(CurveTestFee, StateForPrice_Fee) {
+    const std::tuple<Curve*, Fee*>& param = GetParam();
+    //
+    Curve &curve     = *(std::get<0>(param));
+    Fee   &fee_model = *(std::get<1>(param));
+    auto test_price = [&](const AMMState& st0, money P) {
+        money fee0 = fee_model.computeFee(st0);
+        money P0   = curve.computeP(st0);
+        AMMState st;
+        if( P>P0*(1-fee0) && P<P0/(1-fee0) ) {
+            EXPECT_FALSE( curve.computeStateForPriceFee(st0, P, fee_model, st) );
+        } else {
+            ASSERT_TRUE( curve.computeStateForPriceFee(st0, P, fee_model, st) );
+            money D0 = curve.computeD(st0);
+            money D  = curve.computeD(st);
+            // New state conserves invariant
+            EXPECT_NEAR(D0, D, 1e-8*D0)
+                << "D is conserved" << std::endl
+                << "st0 = " << st0 << std::endl
+                << "st  = " << st  << std::endl
+                << "P   = " << P;
+            // Marginal price including fee must match price we're solving for
+            money P0     = curve.computePrice(st0);
+            money P_AMM  = curve.computePrice(st);
+            money fee    = fee_model.computeFee(st);
+            money P_marg = P_AMM > P0 ? P_AMM / (1-fee) : P_AMM * (1-fee);
+            EXPECT_NEAR(P_marg, P, 1e-8*P)
+                << "P is correct" << std::endl
+                << "st0     = " << st0     << std::endl
+                << "st      = " << st      << std::endl
+                << "P[0]    = " << P0      << std::endl
+                << "P[AMM]  = " << P_AMM   << std::endl
+                << "P[marg] = " << P_marg  << std::endl
+                ;
+        }
+    };
+    // Trivial price scale
+    const AMMState st1(1e6, Prices({1, 10} ));
+    for(auto price: logspace_100) {
+        test_price(st1, price);
+    }
+    // test_price(st1, 1);
+    // Nontrivial price scale
+    const AMMState st2(1e6, Prices({1, 10}));
+    for(auto price: logspace_100) {
+        test_price(st2, price);
+    }
+    // test_price(st1, 1);
+}
 
 // D is linear in token amount
 TEST_P(CurveTest, DIsLinear) {

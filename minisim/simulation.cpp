@@ -62,6 +62,27 @@ bool Curve::computeXPforPFee(const AMMState& st0, money P, const Fee& fee_model,
 }
 
 
+void Curve::computeStateForPrice(const AMMState& st0, money P, AMMState& st) const {
+    TokensXP xp;
+    computeXPforP(st0, P / st0.price[1], xp);
+    st.price = st0.price;
+    st.xs[0] = xp[0] / st0.price[0];
+    st.xs[1] = xp[1] / st0.price[1];
+}
+
+bool Curve::computeStateForPriceFee(const AMMState& st0, money P, const Fee& fee, AMMState& st) const {
+    TokensXP xp;
+    if( computeXPforPFee(st0, P / st0.price[1], fee, xp) ) {
+        st.price = st0.price;
+        st.xs[0] = xp[0] / st0.price[0];
+        st.xs[1] = xp[1] / st0.price[1];
+        return true;
+    } else {
+        return false;
+    }
+}
+
+
 // ----------------------------------------------------------------
 // -- Curve
 // ----------------------------------------------------------------
