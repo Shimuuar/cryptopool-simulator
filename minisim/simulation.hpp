@@ -101,15 +101,12 @@ struct FullAMMState {
 
 // Single trade peformed by pool.
 struct Trade {
-    enum Dir { BUY, SELL };
-
     Trade() = default;
 
     // Construct trade on a curve.
-    Trade(Trade::Dir      trade,  // Whether amount is begin bought or sold by AMM
-          money           amount, // Token amount
-          int             ibuy,   // Index of token being bought
-          int             isell,  // Index of token being sold
+    Trade(money           amount, // Token amount
+          int             ibuy,   // Index of token being bought by AMM
+          int             isell,  // Index of token being sold by AMM
           const AMMState& state,  // Initial state of AMM
           const Curve&    curve   // Curve description
         );

@@ -241,7 +241,7 @@ void Trader::simulate(const TradeDataArray *test_data,
                 auto step = step_for_price_2(state.amm, 0, max_price, ext_vol, *curve, *fee_model, gas_fee, dx);
                 if (step > 0) {
                     trade_happened = true;
-                    trade = Trade(Trade::BUY, step, a, b, state.amm, *curve);
+                    trade = Trade(step, a, b, state.amm, *curve);
                 }
             } else if((min_price != 0) && (min_price < state.price)) {
                 // External Y price is lower. AMM will buy Y from and
@@ -249,7 +249,7 @@ void Trader::simulate(const TradeDataArray *test_data,
                 auto step = step_for_price_2(state.amm, min_price, 0, ext_vol, *curve, *fee_model, gas_fee, dx);
                 if (step > 0) {
                     trade_happened = true;
-                    trade = Trade(Trade::BUY, step, b, a, state.amm, *curve);
+                    trade = Trade(step, b, a, state.amm, *curve);
                 }
             }
             if( trade_happened ) {

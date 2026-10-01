@@ -277,8 +277,7 @@ FullAMMState::FullAMMState(const FullAMMState &state,
 // -- Trade parameters
 // ----------------------------------------------------------------
 
-Trade::Trade(Trade::Dir      trade,
-             money           amount,
+Trade::Trade(money           amount,
              int             ibuy,
              int             isell,
              const AMMState& amm,
@@ -287,13 +286,8 @@ Trade::Trade(Trade::Dir      trade,
 {
     i_buy  = ibuy;
     i_sell = isell;
-    if( trade == Trade::BUY ) {
-        buy  = amount;
-        sell = amm.xs[i_sell] - curve.computeY(amm, amm.xs[i_buy] + buy, i_buy, i_sell);
-    } else {
-        sell = -amount;
-        buy  = amm.xs[i_buy] - curve.computeY(amm, amm.xs[i_sell] + sell, i_sell, i_buy);
-    }
+    buy    = amount;
+    sell   = amm.xs[i_sell] - curve.computeY(amm, amm.xs[i_buy] + buy, i_buy, i_sell);
 }
 
 Trade Trade::applyFee(money fee) const {
