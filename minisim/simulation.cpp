@@ -21,7 +21,7 @@ static inline money mabs(money val) noexcept {
     return val >= 0 ? val : -val;
 }
 
-bool Curve::computeXforPFee(const AMMState& st0, money P, const Fee& fee_model, TokensXP& xp) const {
+bool Curve::computeXPforPFee(const AMMState& st0, money P, const Fee& fee_model, TokensXP& xp) const {
     auto converged = [&](money P_marg) {
         return mabs(P_marg - P) / P < 1e-9;
     };
@@ -31,7 +31,7 @@ bool Curve::computeXforPFee(const AMMState& st0, money P, const Fee& fee_model, 
     money    fee = fee_model.computeFee(st);
     if( P > P0 / (1 - fee) ) {
         for(int i = 0; i < 255; i++ ) {
-            computeXforP(st, P * (1 - fee), xp);
+            computeXPforP(st, P * (1 - fee), xp);
             st.xs[0]     = xp[0] / st.price[0];
             st.xs[1]     = xp[1] / st.price[1];
             fee          = fee_model.computeFee(st);
@@ -41,10 +41,10 @@ bool Curve::computeXforPFee(const AMMState& st0, money P, const Fee& fee_model, 
                 return true;
             }
         }
-        throw std::runtime_error("computeXforPFee: convergence failed");
+        throw std::runtime_error("computeXPforPFee: convergence failed");
     } else if ( P < P0*(1 - fee) ) {
         for(int i = 0; i < 20; i++ ) {
-            computeXforP(st, P / (1 - fee), xp);
+            computeXPforP(st, P / (1 - fee), xp);
             st.xs[0]     = xp[0] / st.price[0];
             st.xs[1]     = xp[1] / st.price[1];
             fee          = fee_model.computeFee(st);
@@ -56,7 +56,7 @@ bool Curve::computeXforPFee(const AMMState& st0, money P, const Fee& fee_model, 
         }
         std::cerr << st0 << std::endl;
         std::cerr << "P = " << P << std::endl;
-        throw std::runtime_error("computeXforPFee: convergence failed");
+        throw std::runtime_error("computeXPforPFee: convergence failed");
     }
     return false;
 }
@@ -164,7 +164,7 @@ money Stableswap::computeY(const AMMState& st, money x, int i, int j) const {
     return ret;
 }
 
-void Stableswap::computeXforP(const AMMState& st, const money P, TokensXP& xp) const {
+void Stableswap::computeXPforP(const AMMState& st, const money P, TokensXP& xp) const {
     const money D = computeD(st);
     // We solve equation for X using Newton's method and we pick state
     // `st' as initial approximation. It certainly have correct
@@ -255,7 +255,7 @@ money ConstantProduct::computeY(const AMMState& st, money x, int i, int j) const
     return inv / x;
 }
 
-void ConstantProduct::computeXforP(const AMMState& st, money P, TokensXP& x) const {
+void ConstantProduct::computeXPforP(const AMMState& st, money P, TokensXP& x) const {
     TokensXP x0(st);
     money D     = sqrtl(x0[0] * x0[1]); // Not quite invariant
     money sqrtP = sqrtl(P);

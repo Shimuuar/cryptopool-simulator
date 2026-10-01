@@ -116,7 +116,7 @@ TEST_P(CurveTest, XForPrice) {
     //
     auto test_price = [&](const AMMState& st0, money P) {
         TokensXP x;
-        curve.computeXforP(st0, P, x);
+        curve.computeXPforP(st0, P, x);
         AMMState st = st0;
         st.xs[0] = x[0] / st.price[0];
         st.xs[1] = x[1] / st.price[1];
@@ -160,9 +160,9 @@ TEST_P(CurveTestFee, XForPrice_Fee) {
         money fee0 = fee_model.computeFee(st0);
         money P0   = curve.computeP(st0);
         if( P>P0*(1-fee0) && P<P0/(1-fee0) ) {
-            EXPECT_FALSE( curve.computeXforPFee(st0, P, fee_model, xp ) );
+            EXPECT_FALSE( curve.computeXPforPFee(st0, P, fee_model, xp ) );
         } else {
-            ASSERT_TRUE( curve.computeXforPFee(st0, P, fee_model, xp) );
+            ASSERT_TRUE( curve.computeXPforPFee(st0, P, fee_model, xp) );
             AMMState st = st0;
             st.xs[0] = xp[0] / st.price[0];
             st.xs[1] = xp[1] / st.price[1];

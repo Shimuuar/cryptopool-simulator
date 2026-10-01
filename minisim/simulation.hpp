@@ -164,14 +164,14 @@ public:
     virtual money computeY(const AMMState& st, money x, int i, int j) const = 0;
     // Find AMM state with given price (reduced by price scale) while
     // maintaining invarian (on curve trade).
-    virtual void computeXforP(const AMMState& st, money P, TokensXP& x) const = 0;
+    virtual void computeXPforP(const AMMState& st, money P, TokensXP& x) const = 0;
 
     // Find AMM state when marginal price with fee applied is equal
     // to provided one. Solution preserves invariant.
     //
     // Note that fee introduce gap around AMM price so for some prices
     // solution doesn't exists and function returns false.
-    virtual bool computeXforPFee(const AMMState& st, money P, const Fee& fee, TokensXP& x) const;
+    virtual bool computeXPforPFee(const AMMState& st, money P, const Fee& fee, TokensXP& x) const;
 };
 
 
@@ -188,7 +188,7 @@ public:
     ~Stableswap() = default;
 
     virtual money computeY(const AMMState& st, money x, int i, int j) const override;
-    virtual void computeXforP(const AMMState& st, money P, TokensXP& x) const override;
+    virtual void computeXPforP(const AMMState& st, money P, TokensXP& x) const override;
     virtual money computeP(const AMMState& st)   const override;
     virtual money computeXcp(const AMMState& st) const override;
     virtual money computeD(const AMMState& st)   const override;
@@ -203,7 +203,7 @@ public:
     ~ConstantProduct() = default;
 
     virtual money computeY(const AMMState& st, money x, int i, int j) const override;
-    virtual void computeXforP(const AMMState& st, money P, TokensXP& x) const override;
+    virtual void computeXPforP(const AMMState& st, money P, TokensXP& x) const override;
     virtual money computeP(const AMMState& st)   const override;
     virtual money computeXcp(const AMMState& st) const override;
     virtual money computeD(const AMMState& st)   const override;
