@@ -1,6 +1,7 @@
 // Test suite uses Google Test (main() is provided by gtest_main).
-#include <gtest/gtest.h>
 #include "simulation.hpp"
+#include <gtest/gtest.h>
+#include <stdexcept>
 
 
 class CurveTest : public ::testing::TestWithParam<Curve*> {};
@@ -271,9 +272,27 @@ namespace {
         &stableswap_2,
         &constant_prod
         );
+
+    std::string ppr_Curve(const testing::TestParamInfo<Curve*>& info) {
+        const Curve* curve = info.param;
+        std::string name;
+        if (const auto* stableswap = dynamic_cast<const Stableswap*>(curve)) {
+            name = "Stableswap_A" + std::to_string(stableswap->A);
+        } else if (dynamic_cast<const ConstantProduct*>(curve)) {
+            name = "ConstantProduct";
+        } else {
+            throw std::runtime_error("Fix pretty printer");
+        }
+        for(char& c : name) {
+            if (c != '_' && !std::isalnum(c)) {
+                c = '_';
+            }
+        }
+        return name;
+    }
 }
 
-INSTANTIATE_TEST_SUITE_P(Minisim, CurveTest, param_curve);
+INSTANTIATE_TEST_SUITE_P(Minisim, CurveTest, param_curve, ppr_Curve);
 
 
 
