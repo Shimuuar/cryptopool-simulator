@@ -169,7 +169,7 @@ TEST_P(CurveTestFee, XForPrice_Fee) {
             money D0 = curve.computeD(st0);
             money D  = curve.computeD(st);
             // New state conserves invariant
-            EXPECT_NEAR(D0, D, 1e-12*D0)
+            EXPECT_NEAR(D0, D, 1e-8*D0)
                 << "D is conserved" << std::endl
                 << "st0 = " << st0 << std::endl
                 << "st  = " << st  << std::endl
@@ -179,7 +179,7 @@ TEST_P(CurveTestFee, XForPrice_Fee) {
             money P_AMM  = curve.computeP(st);
             money fee    = fee_model.computeFee(st);
             money P_marg = P_AMM > P0 ? P_AMM / (1-fee) : P_AMM * (1-fee);
-            EXPECT_NEAR(P_marg, P, 1e-12*P)
+            EXPECT_NEAR(P_marg, P, 1e-8*P)
                 << "P is correct" << std::endl
                 << "st0     = " << st0     << std::endl
                 << "st      = " << st      << std::endl
@@ -236,7 +236,7 @@ namespace {
 
     FlatFee fee_flat_0(0,0);
     FlatFee fee_flat_100bps(100e-4,0);
-
+    StdFee  fee_std(0.00535, 0.0131, 0.005125, 0.016, 1);
 
     auto param_curve = testing::Values(
         &stableswap_1,
@@ -246,7 +246,8 @@ namespace {
 
     auto param_fee = testing::Values(
         &fee_flat_0,
-        &fee_flat_100bps
+        &fee_flat_100bps,
+        &fee_std
     );
 
     std::string curve_name(const Curve* curve) {
@@ -267,9 +268,12 @@ namespace {
     }
 
     std::string fee_name(const Fee* fee) {
-        if (const auto* flat = dynamic_cast<const FlatFee*>(fee)) {
+        if( const auto* flat = dynamic_cast<const FlatFee*>(fee)) {
             const auto bps = std::llround(flat->fee * 10000);
             return "FlatFee_" + std::to_string(bps) + "bps";
+        }
+        if( dynamic_cast<const StdFee*>(fee) ) {
+            return "StdFee";
         }
         throw std::runtime_error("Fix pretty printer");
     }

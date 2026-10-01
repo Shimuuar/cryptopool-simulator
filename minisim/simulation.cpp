@@ -21,17 +21,42 @@ static inline money mabs(money val) noexcept {
     return val >= 0 ? val : -val;
 }
 
-bool Curve::computeXforPFee(const AMMState& st, money P, const Fee& fee_model, TokensXP& x) const {
-    computeXforP(st, P, x);
+bool Curve::computeXforPFee(const AMMState& st0, money P, const Fee& fee_model, TokensXP& xp) const {
+    auto converged = [&](money P_marg) {
+        return mabs(P_marg - P) / P < 1e-9;
+    };
     // Fee and price at initial point
-    money P0   = computeP(st);
-    money fee0 = fee_model.computeFee(st);
-    if( P > P0 / (1 - fee0) ) {
-        computeXforP(st, P * (1-fee0), x);
-        return true;
-    } else if ( P < P0*(1 - fee0) ) {
-        computeXforP(st, P / (1-fee0), x);
-        return true;
+    money    P0  = computeP(st0);
+    AMMState st  = st0;
+    money    fee = fee_model.computeFee(st);
+    if( P > P0 / (1 - fee) ) {
+        for(int i = 0; i < 255; i++ ) {
+            computeXforP(st, P * (1 - fee), xp);
+            st.xs[0]     = xp[0] / st.price[0];
+            st.xs[1]     = xp[1] / st.price[1];
+            fee          = fee_model.computeFee(st);
+            money P_AMM  = computeP(st);
+            money P_marg = P_AMM / (1 - fee);
+            if( converged(P_marg) ) {
+                return true;
+            }
+        }
+        throw std::runtime_error("computeXforPFee: convergence failed");
+    } else if ( P < P0*(1 - fee) ) {
+        for(int i = 0; i < 20; i++ ) {
+            computeXforP(st, P / (1 - fee), xp);
+            st.xs[0]     = xp[0] / st.price[0];
+            st.xs[1]     = xp[1] / st.price[1];
+            fee          = fee_model.computeFee(st);
+            money P_AMM  = computeP(st);
+            money P_marg = P_AMM * (1 - fee);
+            if( converged(P_marg) ) {
+                return true;
+            }
+        }
+        std::cerr << st0 << std::endl;
+        std::cerr << "P = " << P << std::endl;
+        throw std::runtime_error("computeXforPFee: convergence failed");
     }
     return false;
 }
