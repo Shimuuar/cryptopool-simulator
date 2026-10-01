@@ -1,10 +1,13 @@
 // Test suite uses Google Test (main() is provided by gtest_main).
 #include "simulation.hpp"
 #include <gtest/gtest.h>
+#include <cmath>
 #include <stdexcept>
+#include <tuple>
 
 
 class CurveTest : public ::testing::TestWithParam<Curve*> {};
+class CurveTestFee : public ::testing::TestWithParam<std::tuple<Curve*,Fee*>> {};
 
 
 // Number on logarifmic grid from 1/100 to 100. Used in tests
@@ -135,58 +138,22 @@ TEST_P(CurveTest, XForPrice) {
     for(auto price: logspace_100) {
         test_price(st1, price);
     }
+    test_price(st1, 1.0);
     // Nontrivial price scale
     const AMMState st2(1e6, Prices({1, 10}));
     for(auto price: logspace_100) {
         test_price(st2, price);
     }
-}
-
-// When we solve for price with zero fee computeXforPFee works
-// identically to computeXforP
-TEST_P(CurveTest, XForPrice_ZeroFee) {
-    const Curve& curve = *GetParam();
-    //
-    FlatFee zero_fee(0, 0);
-    auto test_price = [&](const AMMState& st0, money P) {
-        TokensXP x;
-        EXPECT_TRUE( curve.computeXforPFee(st0, P, zero_fee, x) );
-        AMMState st = st0;
-        st.xs[0] = x[0] / st.price[0];
-        st.xs[1] = x[1] / st.price[1];
-        money D0 = curve.computeD(st0);
-        money D  = curve.computeD(st);
-        EXPECT_NEAR(D0, D, 1e-12*D0)
-            << "D is conserved" << std::endl
-            << "st0 = " << st0 << std::endl
-            << "st  = " << st  << std::endl
-            << "P = " << P;
-        EXPECT_NEAR(curve.computeP(st), P, 1e-12*P)
-            << "P is correct" << std::endl
-            << "st0 = " << st0 << std::endl
-            << "st  = " << st  << std::endl
-            << "P = " << P;
-    };
-    // Trivial price scale
-    const AMMState st1(1e6, Prices({1, 1} ));
-    for(auto price: logspace_100) {
-        test_price(st1, price);
-    }
-    // Nontrivial price scale
-    const AMMState st2(1e6, Prices({1, 10}));
-    for(auto price: logspace_100) {
-        test_price(st2, price);
-    }
+    test_price(st2, 1.0);
 }
 
 
-
-// When we solve for price with zero fee computeXforPFee works
-// identically to computeXforP
-TEST_P(CurveTest, XForPrice_ConstFee) {
-    const Curve& curve = *GetParam();
+// Test that we correctly solve state for a given price with fee
+TEST_P(CurveTestFee, XForPrice_Fee) {
+    const std::tuple<Curve*, Fee*>& param = GetParam();
     //
-    FlatFee fee_model(0.05, 0);
+    Curve &curve     = *(std::get<0>(param));
+    Fee   &fee_model = *(std::get<1>(param));
     auto test_price = [&](const AMMState& st0, money P) {
         TokensXP xp;
         //
@@ -267,14 +234,22 @@ namespace {
     Stableswap      stableswap_2(50);
     ConstantProduct constant_prod;
 
+    FlatFee fee_flat_0(0,0);
+    FlatFee fee_flat_100bps(100e-4,0);
+
+
     auto param_curve = testing::Values(
         &stableswap_1,
         &stableswap_2,
         &constant_prod
-        );
+    );
 
-    std::string ppr_Curve(const testing::TestParamInfo<Curve*>& info) {
-        const Curve* curve = info.param;
+    auto param_fee = testing::Values(
+        &fee_flat_0,
+        &fee_flat_100bps
+    );
+
+    std::string curve_name(const Curve* curve) {
         std::string name;
         if (const auto* stableswap = dynamic_cast<const Stableswap*>(curve)) {
             name = "Stableswap_A" + std::to_string(stableswap->A);
@@ -290,9 +265,29 @@ namespace {
         }
         return name;
     }
+
+    std::string fee_name(const Fee* fee) {
+        if (const auto* flat = dynamic_cast<const FlatFee*>(fee)) {
+            const auto bps = std::llround(flat->fee * 10000);
+            return "FlatFee_" + std::to_string(bps) + "bps";
+        }
+        throw std::runtime_error("Fix pretty printer");
+    }
 }
 
-INSTANTIATE_TEST_SUITE_P(Minisim, CurveTest, param_curve, ppr_Curve);
+INSTANTIATE_TEST_SUITE_P(
+    Minisim, CurveTest,
+    param_curve,
+    [](const testing::TestParamInfo<Curve*>& info) {
+        return curve_name(info.param);
+    });
+INSTANTIATE_TEST_SUITE_P(
+    Minisim, CurveTestFee,
+    testing::Combine(param_curve, param_fee),
+    [](const testing::TestParamInfo<std::tuple<Curve*, Fee*>>& info) {
+        return curve_name(std::get<0>(info.param)) + "_"
+             + fee_name(std::get<1>(info.param));
+    });
 
 
 
