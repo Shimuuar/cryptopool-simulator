@@ -265,15 +265,15 @@ namespace {
     Stableswap      stableswap_1(5);
     Stableswap      stableswap_2(50);
     ConstantProduct constant_prod;
+
+    auto param_curve = testing::Values(
+        &stableswap_1,
+        &stableswap_2,
+        &constant_prod
+        );
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    Minisim,
-    CurveTest,
-    ::testing::Values(&stableswap_1,
-                      &stableswap_2,
-                      &constant_prod
-        ));
+INSTANTIATE_TEST_SUITE_P(Minisim, CurveTest, param_curve);
 
 
 
