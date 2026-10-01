@@ -29,7 +29,7 @@ bool Curve::computeXPforPFee(const AMMState& st0, money P, const Fee& fee_model,
     money    P0  = computeP(st0);
     AMMState st  = st0;
     money    fee = fee_model.computeFee(st);
-    if( P > P0 / (1 - fee) ) {
+    if( P >= P0 / (1 - fee) ) {
         for(int i = 0; i < 255; i++ ) {
             computeXPforP(st, P * (1 - fee), xp);
             st.xs[0]     = xp[0] / st.price[0];
@@ -42,7 +42,7 @@ bool Curve::computeXPforPFee(const AMMState& st0, money P, const Fee& fee_model,
             }
         }
         throw std::runtime_error("computeXPforPFee: convergence failed");
-    } else if ( P < P0*(1 - fee) ) {
+    } else if ( P <= P0*(1 - fee) ) {
         for(int i = 0; i < 20; i++ ) {
             computeXPforP(st, P / (1 - fee), xp);
             st.xs[0]     = xp[0] / st.price[0];

@@ -195,9 +195,11 @@ TEST_P(CurveTestFee, XPForP_Fee) {
         money fee0 = fee_model.computeFee(st0);
         money P0   = curve.computeP(st0);
         if( P>P0*(1-fee0) && P<P0/(1-fee0) ) {
-            EXPECT_FALSE( curve.computeXPforPFee(st0, P, fee_model, xp ) );
+            EXPECT_FALSE( curve.computeXPforPFee(st0, P, fee_model, xp ) )
+                << "No solution expected";
         } else {
-            ASSERT_TRUE( curve.computeXPforPFee(st0, P, fee_model, xp) );
+            ASSERT_TRUE( curve.computeXPforPFee(st0, P, fee_model, xp) )
+                << "Solution must exist";
             AMMState st = st0;
             st.xs[0] = xp[0] / st.price[0];
             st.xs[1] = xp[1] / st.price[1];
@@ -229,13 +231,13 @@ TEST_P(CurveTestFee, XPForP_Fee) {
     for(auto price: logspace_100) {
         test_price(st1, price);
     }
-    // test_price(st1, 1);
+    test_price(st1, 1);
     // Nontrivial price scale
     const AMMState st2(1e6, Prices({1, 10}));
     for(auto price: logspace_100) {
         test_price(st2, price);
     }
-    // test_price(st1, 1);
+    test_price(st1, 1);
 }
 
 // Test that we correctly solve state for a given price with fee
@@ -280,13 +282,11 @@ TEST_P(CurveTestFee, StateForPrice_Fee) {
     for(auto price: logspace_100) {
         test_price(st1, price);
     }
-    // test_price(st1, 1);
     // Nontrivial price scale
     const AMMState st2(1e6, Prices({1, 10}));
     for(auto price: logspace_100) {
         test_price(st2, price);
     }
-    // test_price(st1, 1);
 }
 
 // D is linear in token amount
