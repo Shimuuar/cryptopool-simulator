@@ -21,20 +21,20 @@ static inline money mabs(money val) noexcept {
     return val >= 0 ? val : -val;
 }
 
-bool Curve::computeXPforPFee(const AMMState& st0, money P, const Fee& fee_model, TokensXP& xp) const {
+bool Curve::computeXPforPFee(const AMMState& st0, money P, const Fee& fee_model, TokensXP& xp, money ext_fee) const {
     auto converged = [&](money P_marg) {
         return mabs(P_marg - P) / P < 1e-9;
     };
     // Fee and price at initial point
     money    P0  = computeP(st0);
     AMMState st  = st0;
-    money    fee = fee_model.computeFee(st);
+    money    fee = fee_model.computeFee(st) + ext_fee;
     if( P >= P0 / (1 - fee) ) {
         for(int i = 0; i < 255; i++ ) {
             computeXPforP(st, P * (1 - fee), xp);
             st.xs[0]     = xp[0] / st.price[0];
             st.xs[1]     = xp[1] / st.price[1];
-            fee          = fee_model.computeFee(st);
+            fee          = fee_model.computeFee(st) + ext_fee;
             money P_AMM  = computeP(st);
             money P_marg = P_AMM / (1 - fee);
             if( converged(P_marg) ) {
@@ -47,7 +47,7 @@ bool Curve::computeXPforPFee(const AMMState& st0, money P, const Fee& fee_model,
             computeXPforP(st, P / (1 - fee), xp);
             st.xs[0]     = xp[0] / st.price[0];
             st.xs[1]     = xp[1] / st.price[1];
-            fee          = fee_model.computeFee(st);
+            fee          = fee_model.computeFee(st) + ext_fee;
             money P_AMM  = computeP(st);
             money P_marg = P_AMM * (1 - fee);
             if( converged(P_marg) ) {
@@ -70,9 +70,9 @@ void Curve::computeStateForPrice(const AMMState& st0, money P, AMMState& st) con
     st.xs[1] = xp[1] / st0.price[1];
 }
 
-bool Curve::computeStateForPriceFee(const AMMState& st0, money P, const Fee& fee, AMMState& st) const {
+bool Curve::computeStateForPriceFee(const AMMState& st0, money P, const Fee& fee, AMMState& st, money ext_fee) const {
     TokensXP xp;
-    if( computeXPforPFee(st0, P / st0.price[1], fee, xp) ) {
+    if( computeXPforPFee(st0, P / st0.price[1], fee, xp, ext_fee) ) {
         st.price = st0.price;
         st.xs[0] = xp[0] / st0.price[0];
         st.xs[1] = xp[1] / st0.price[1];

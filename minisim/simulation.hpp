@@ -174,7 +174,11 @@ public:
     //
     // Note that fee introduce gap around AMM price so for some prices
     // solution doesn't exists and function returns false.
-    bool computeStateForPriceFee(const AMMState& st0, money P, const Fee& fee, AMMState& st) const;
+    bool computeStateForPriceFee(const AMMState& st0,
+                                 money P,
+                                 const Fee& fee,
+                                 AMMState& st,
+                                 money ext_fee = 0) const;
 
 
     // Find AMM state with given price (reduced by price scale) while
@@ -186,7 +190,11 @@ public:
     //
     // Note that fee introduce gap around AMM price so for some prices
     // solution doesn't exists and function returns false.
-    bool computeXPforPFee(const AMMState& st, money P, const Fee& fee, TokensXP& x) const;
+    bool computeXPforPFee(const AMMState& st,
+                          money P,
+                          const Fee& fee,
+                          TokensXP& x,
+                          money ext_fee = 0) const;
 };
 
 
