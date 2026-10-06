@@ -104,9 +104,16 @@ static money solve_D(money A, const TokensXP &x) {
 Stableswap::Stableswap(money _A) :
     A(_A)
 {}
-Stableswap::Stableswap(const JSON::ref& json) :
-    A(json["A"])
-{}
+Stableswap::Stableswap(const JSON::ref& json)
+{
+    if( json.contains("A") ) {
+        A = json["A"];
+    } else if( json.contains("a") ) {
+        A = json["a"];
+    } else {
+        throw std::runtime_error("Missing A parameter for Stableswap curve");
+    }
+}
 static Factory<Curve>::Register<Stableswap> reg_stableswap("stableswap");
 
 money Stableswap::computeD(const AMMState& st) const {
