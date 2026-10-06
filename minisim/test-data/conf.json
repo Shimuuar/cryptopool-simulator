@@ -22,8 +22,7 @@
             "log": 1,
             "allowed_extra_profit": 1e-10,
             "ext_fee": 0.0002,
-            "lp_profit_fraction": 0.4049,
-            "boost_min": 0
+            "lp_profit_fraction": 0.4049
         }
     ],
     "datafile": [
