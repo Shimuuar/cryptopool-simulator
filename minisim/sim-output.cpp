@@ -1,9 +1,11 @@
 #include "sim-output.hpp"
 
+#ifdef SUPPORT_PARQUET
 #include <arrow/api.h>
 #include <arrow/io/file.h>
 #include <parquet/arrow/writer.h>
 #include <parquet/properties.h>
+#endif
 
 #include <stdexcept>
 #include <string>
@@ -11,11 +13,8 @@
 
 SimOuput::~SimOuput() {}
 
-static void throwOnError(const arrow::Status& status, const char* what) {
-    if( !status.ok() ) {
-        throw std::runtime_error(std::string(what) + ": " + status.ToString());
-    }
-}
+// ----------------------------------------------------------------
+// -- JSON
 
 namespace {
     class SimOuputJSON : public SimOuput {
@@ -79,6 +78,18 @@ void SimOuputJSON::recordPoint(
 
 std::unique_ptr<SimOuput> makeOutputJSON(const std::string& path) {
     return std::make_unique<SimOuputJSON>(path);
+}
+
+
+// ----------------------------------------------------------------
+// -- Parquet
+
+#ifdef SUPPORT_PARQUET
+
+static void throwOnError(const arrow::Status& status, const char* what) {
+    if( !status.ok() ) {
+        throw std::runtime_error(std::string(what) + ": " + status.ToString());
+    }
 }
 
 namespace {
@@ -222,6 +233,12 @@ void SimOuputParquet::flush() {
     m_rows = 0;
 }
 
+#endif
+
 std::unique_ptr<SimOuput> makeOutputParquet(const std::string& path) {
+#ifdef SUPPORT_PARQUET
     return std::make_unique<SimOuputParquet>(path);
+#else
+    throw std::runtime_error("minisim is built without parquet support");
+#endif
 }

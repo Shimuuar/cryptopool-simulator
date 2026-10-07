@@ -446,7 +446,9 @@ static void usage(std::ostream& out) {
         << "  --trim N            use only N last elements in time series\n"
         << "  -r, --result FILE   write summary results into FILE\n"
         << "  --out-json   FILE   write detailed JSON output into FILE (w.out extension)\n"
+#ifdef SUPPORT_PARQUET
         << "  --out-parquet FILE  write detailed Parquet output into FILE (w.out extension)\n"
+#endif
         ;
 }
 

@@ -1,11 +1,24 @@
 .SUFFIXES:
 .PHONY: all clean test test-run
 
+
+# Some features require libraries which may or may not be present and
+# must be enabled explictly.
+-include $(LIB_DEP) $(TEST_DEP) Makefile.local
+
+PARQUET ?= 0
+ifneq (${PARQUET},0)
+CFLAGS_PARQUET = $(shell pkg-config --cflags parquet) -DSUPPORT_PARQUET
+LIBS_PARQUET   = $(shell pkg-config --libs parquet)
+else
+CFLAGS_PARQUET =
+LIBS_PARQUET   =
+endif
+
+# ----------------------------------------------------------------
 CXX           = g++
-PARQUET_CFLAGS = $(shell pkg-config --cflags parquet)
-PARQUET_LIBS   = $(shell pkg-config --libs parquet)
-CXXFLAGS      = -Wall -g -O2 -std=c++20 -I.. -Ivendored $(PARQUET_CFLAGS)
-LDFLAGS       = $(PARQUET_LIBS)
+CXXFLAGS      = -Wall -g -O2 -std=c++20 -I.. -Ivendored $(CFLAGS_PARQUET)
+LDFLAGS       = $(LIBS_PARQUET)
 CXXFLAGS_TEST = $(CXXFLAGS) -I. $(shell pkg-config --cflags gtest_main)
 LDFLAGS_TEST  = $(LDFLAGS) $(shell pkg-config --libs gtest_main)
 LIB_SRC = \
@@ -28,6 +41,7 @@ TEST_OBJ = $(patsubst test/%, build/test/%.o, $(TEST_SRC))
 # Compiler-generated dependency files (one per object).
 LIB_DEP  = $(LIB_OBJ:.cpp.o=.cpp.d)
 TEST_DEP = $(TEST_OBJ:.cpp.o=.cpp.d)
+
 
 all: minisim minisim-make-mmap
 clean:
