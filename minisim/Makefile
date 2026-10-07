@@ -2,8 +2,10 @@
 .PHONY: all clean test test-run
 
 CXX           = g++
-CXXFLAGS      = -Wall -g -O2 -std=c++17 -I.. -Ivendored
-LDFLAGS       =
+PARQUET_CFLAGS = $(shell pkg-config --cflags parquet)
+PARQUET_LIBS   = $(shell pkg-config --libs parquet)
+CXXFLAGS      = -Wall -g -O2 -std=c++20 -I.. -Ivendored $(PARQUET_CFLAGS)
+LDFLAGS       = $(PARQUET_LIBS)
 CXXFLAGS_TEST = $(CXXFLAGS) -I. $(shell pkg-config --cflags gtest_main)
 LDFLAGS_TEST  = $(LDFLAGS) $(shell pkg-config --libs gtest_main)
 LIB_SRC = \
