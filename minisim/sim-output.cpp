@@ -17,7 +17,7 @@ namespace {
         ) override;
     private:
         FILE* m_file;
-        int   m_rows;
+        int   m_rows = 0;
     };       
 }
 
