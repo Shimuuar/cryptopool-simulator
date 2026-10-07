@@ -19,7 +19,7 @@ SimOuput::~SimOuput() {}
 namespace {
     class SimOuputJSON : public SimOuput {
     public:
-        SimOuputJSON(const std::string& name);
+        SimOuputJSON(const std::string& name, int skip);
         virtual ~SimOuputJSON();
         void recordPoint(
             u64 t,
@@ -30,12 +30,24 @@ namespace {
             money local_boost_rate
         ) override;
     private:
+        const int m_skip;
+        int m_skip_cnt;
+
         FILE* m_file;
         int   m_rows = 0;
     };       
 }
 
-SimOuputJSON::SimOuputJSON(const std::string& name) {
+SimOuputJSON::SimOuputJSON(const std::string& name, int skip) :
+    m_skip(skip),
+    m_skip_cnt(skip)
+{
+    m_skip_cnt++;
+    if( m_skip_cnt < m_skip ) {
+        return;
+    }
+    m_skip_cnt = 0;
+    //
     m_file = fopen(name.c_str(), "w");
     if( !m_file ) {
         throw std::runtime_error("Cannot open file for detailed output");
@@ -76,8 +88,8 @@ void SimOuputJSON::recordPoint(
             local_boost_rate);
 }
 
-std::unique_ptr<SimOuput> makeOutputJSON(const std::string& path) {
-    return std::make_unique<SimOuputJSON>(path);
+std::unique_ptr<SimOuput> makeOutputJSON(const std::string& path, int skip) {
+    return std::make_unique<SimOuputJSON>(path, skip);
 }
 
 
@@ -95,7 +107,7 @@ static void throwOnError(const arrow::Status& status, const char* what) {
 namespace {
     class SimOuputParquet : public SimOuput {
     public:
-        SimOuputParquet(const std::string& name);
+        SimOuputParquet(const std::string& name, int skip);
         virtual ~SimOuputParquet();
         void recordPoint(
             u64 t,
@@ -109,6 +121,8 @@ namespace {
         // Maximum number of points kept in memory before being flushed
         static constexpr int64_t BATCH_SIZE = 1 << 16;
 
+        const int m_skip;
+        int m_skip_cnt;
         void flush();
 
         std::shared_ptr<arrow::Schema>               m_schema;
@@ -127,7 +141,10 @@ namespace {
     };
 }
 
-SimOuputParquet::SimOuputParquet(const std::string& name) {
+SimOuputParquet::SimOuputParquet(const std::string& name, int skip) :
+    m_skip(skip),
+    m_skip_cnt(skip)
+{
     auto sink = arrow::io::FileOutputStream::Open(name);
     throwOnError(sink.status(), "Cannot open file for parquet output");
     m_sink   = *sink;
@@ -187,6 +204,12 @@ void SimOuputParquet::recordPoint(
     money local_boost_rate
     )
 {
+    m_skip_cnt++;
+    if( m_skip_cnt < m_skip ) {
+        return;
+    }
+    m_skip_cnt = 0;
+    
     // NOTE: 2-coin specific
     const int a = 0;
     const int b = 1;
@@ -235,9 +258,9 @@ void SimOuputParquet::flush() {
 
 #endif
 
-std::unique_ptr<SimOuput> makeOutputParquet(const std::string& path) {
+std::unique_ptr<SimOuput> makeOutputParquet(const std::string& path, int skip) {
 #ifdef SUPPORT_PARQUET
-    return std::make_unique<SimOuputParquet>(path);
+    return std::make_unique<SimOuputParquet>(path, skip);
 #else
     throw std::runtime_error("minisim is built without parquet support");
 #endif

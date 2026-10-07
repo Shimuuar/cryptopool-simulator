@@ -21,7 +21,7 @@ public:
 
 
 // Write output into JSON file
-std::unique_ptr<SimOuput> makeOutputJSON(const std::string& path);
+std::unique_ptr<SimOuput> makeOutputJSON(const std::string& path, int skip);
 
 // Write output into Apache Parquet file
-std::unique_ptr<SimOuput> makeOutputParquet(const std::string& path);
+std::unique_ptr<SimOuput> makeOutputParquet(const std::string& path, int skip);

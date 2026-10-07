@@ -449,6 +449,7 @@ static void usage(std::ostream& out) {
 #ifdef SUPPORT_PARQUET
         << "  --out-parquet FILE  write detailed Parquet output into FILE (w.out extension)\n"
 #endif
+        << "  --out-skip N        write only every Nth point (default=1)\n"
         ;
 }
 
@@ -459,15 +460,17 @@ int main(int argc, char **argv) {
     std::string result_file;
     std::string out_json;
     std::string out_parquet;
+    int out_skip = 1;
     // Parse command line arguments using getopt
     {
         static const option long_opts[] = {
-            {"threads", required_argument, nullptr, 't'},
-            {"trim",    required_argument, nullptr, 1001},
-            {"out-json",required_argument, nullptr, 1002},
-            {"out-parquet",required_argument, nullptr, 1003},
-            {"result",  required_argument, nullptr, 'r'},
-            {"help",    no_argument,       nullptr, 'h'},
+            {"threads",     required_argument, nullptr, 't'},
+            {"trim",        required_argument, nullptr, 1001},
+            {"out-json",    required_argument, nullptr, 1002},
+            {"out-parquet", required_argument, nullptr, 1003},
+            {"out-skip",    required_argument, nullptr, 1004},
+            {"result",      required_argument, nullptr, 'r'},
+            {"help",        no_argument,       nullptr, 'h'},
             {nullptr, 0, nullptr, 0}
         };
         while(true) {
@@ -485,6 +488,9 @@ int main(int argc, char **argv) {
                 break;
             case 1003:
                 out_parquet = optarg;
+                break;
+            case 1004:
+                out_skip = std::stoi(optarg);
                 break;
             case 'r':
                 result_file = optarg;
@@ -533,12 +539,12 @@ int main(int argc, char **argv) {
             if( out_json.length() > 0 ) {
                 std::ostringstream ss;
                 ss << out_json << i << ".json";
-                task->output = makeOutputJSON(ss.str());
+                task->output = makeOutputJSON(ss.str(), out_skip);
             }
             if( out_parquet.length() > 0 ) {
                 std::ostringstream ss;
                 ss << out_parquet << i << ".parquet";
-                task->output = makeOutputParquet(ss.str());
+                task->output = makeOutputParquet(ss.str(), out_skip);
             }
             work_queue.enqueue(std::move(task));
         }
