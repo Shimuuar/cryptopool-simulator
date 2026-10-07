@@ -5,7 +5,6 @@
 #include <memory>
 
 #include "simulation.hpp"
-#include "simdjson.h"
 
 // OHLC candlesticks >
 struct OHLC {
