@@ -35,9 +35,9 @@ clean:
 ## Main executable
 
 minisim: libminisim.a build/minisim.cpp.o
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) build/$@.cpp.o libminisim.a -o $@
+	$(CXX) $(CXXFLAGS) build/$@.cpp.o libminisim.a $(LDFLAGS) -o $@
 minisim-make-mmap: libminisim.a build/minisim-make-mmap.cpp.o
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) build/$@.cpp.o libminisim.a -o $@
+	$(CXX) $(CXXFLAGS) build/$@.cpp.o libminisim.a $(LDFLAGS) -o $@
 libminisim.a: ${LIB_OBJ}
 	ar crs $@ $+
 # -MMD writes precise header deps to *.cpp.d
