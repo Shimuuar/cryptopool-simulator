@@ -242,6 +242,7 @@ void SimOuputParquet::flush() {
     std::shared_ptr<arrow::Array> price_oracle;
     std::shared_ptr<arrow::Array> price_scale;
     std::shared_ptr<arrow::Array> xcp;
+    std::shared_ptr<arrow::Array> xcp_profit;
     std::shared_ptr<arrow::Array> boost_rate;
     throwOnError(m_t->Finish(&t),                        "parquet finish t");
     throwOnError(m_x->Finish(&x),                        "parquet finish x");
@@ -250,11 +251,12 @@ void SimOuputParquet::flush() {
     throwOnError(m_price_oracle->Finish(&price_oracle),  "parquet finish price_oracle");
     throwOnError(m_price_scale->Finish(&price_scale),    "parquet finish price_scale");
     throwOnError(m_xcp->Finish(&xcp),                    "parquet finish xcp");
+    throwOnError(m_xcp_profit->Finish(&xcp_profit),      "parquet finish xcp_profit");
     throwOnError(m_boost_rate->Finish(&boost_rate),      "parquet finish boost_rate");
 
     auto batch = arrow::RecordBatch::Make(
         m_schema, m_rows,
-        {t, x, y, price_amm, price_oracle, price_scale, xcp, boost_rate});
+        {t, x, y, price_amm, price_oracle, price_scale, xcp, xcp_profit, boost_rate});
     throwOnError(m_writer->WriteRecordBatch(*batch), "parquet write batch");
     m_rows = 0;
 }
