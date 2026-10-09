@@ -134,8 +134,8 @@ namespace {
         std::unique_ptr<arrow::DoubleBuilder>        m_price_amm;
         std::unique_ptr<arrow::DoubleBuilder>        m_price_oracle;
         std::unique_ptr<arrow::DoubleBuilder>        m_price_scale;
-        std::unique_ptr<arrow::DoubleBuilder>        m_profit;
         std::unique_ptr<arrow::DoubleBuilder>        m_xcp;
+        std::unique_ptr<arrow::DoubleBuilder>        m_xcp_profit;
         std::unique_ptr<arrow::DoubleBuilder>        m_boost_rate;
         int64_t                                      m_rows = 0;
     };
@@ -156,6 +156,7 @@ SimOuputParquet::SimOuputParquet(const std::string& name, int skip) :
         arrow::field("price_oracle", arrow::float64()),
         arrow::field("price_scale",  arrow::float64()),
         arrow::field("xcp",          arrow::float64()),
+        arrow::field("xcp_profit",   arrow::float64()),
         arrow::field("boost_rate",   arrow::float64()),
     });
 
@@ -177,6 +178,7 @@ SimOuputParquet::SimOuputParquet(const std::string& name, int skip) :
     m_price_oracle = std::make_unique<arrow::DoubleBuilder>();
     m_price_scale  = std::make_unique<arrow::DoubleBuilder>();
     m_xcp          = std::make_unique<arrow::DoubleBuilder>();
+    m_xcp_profit   = std::make_unique<arrow::DoubleBuilder>();
     m_boost_rate   = std::make_unique<arrow::DoubleBuilder>();
 }
 
@@ -220,7 +222,8 @@ void SimOuputParquet::recordPoint(
     throwOnError(m_price_amm->Append(static_cast<double>(state.price)),  "parquet append price_amm");
     throwOnError(m_price_oracle->Append(static_cast<double>(oracle.price[b] / oracle.price[a])), "parquet append price_oracle");
     throwOnError(m_price_scale->Append(static_cast<double>(state.amm.price[1])), "parquet append price_scale");
-    throwOnError(m_xcp->Append(static_cast<double>(xcp_profit)), "parquet append xcp");
+    throwOnError(m_xcp->Append(static_cast<double>(state.xcp)), "parquet append xcp");
+    throwOnError(m_xcp_profit->Append(static_cast<double>(xcp_profit)), "parquet append xcp_profit");
     throwOnError(m_boost_rate->Append(static_cast<double>(local_boost_rate)), "parquet append boost_rate");
 
     if( ++m_rows >= BATCH_SIZE ) {
